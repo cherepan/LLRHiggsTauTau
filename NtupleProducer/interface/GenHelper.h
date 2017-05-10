@@ -15,6 +15,13 @@
 
 #include <DataFormats/HepMCCandidate/interface/GenParticle.h>
 #include <vector>
+#include "LLRHiggsTauTau/NtupleProducer/interface/TauDecay_CMSSW.h"
+#include "Validation/EventGenerator/interface/PdtPdgMini.h"
+#include "LLRHiggsTauTau/NtupleProducer/interface//DataMCType.h"
+
+
+#include "DataFormats/ParticleFlowCandidate/interface/PFCandidate.h"
+#include "DataFormats/ParticleFlowCandidate/interface/PFCandidateFwd.h"
 
 namespace genhelper {
 

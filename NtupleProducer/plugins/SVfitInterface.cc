@@ -441,7 +441,7 @@ void SVfitInterface::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
         SVphiUnc = algo.phiUncert();
         SVMETRho = algo.fittedMET().Rho();
         SVMETPhi = algo.fittedMET().Phi(); // this is NOT a vector in the transverse plane! It has eta != 0.
-        SVfitTransverseMass = algo.transverseMass();
+	//        SVfitTransverseMass = algo.transverseMass();
         
       }
       else
@@ -469,7 +469,7 @@ void SVfitInterface::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
           SVphiUncTauUp = algoTauUp.phiUncert();
           SVMETRhoTauUp = algoTauUp.fittedMET().Rho();
           SVMETPhiTauUp = algoTauUp.fittedMET().Phi(); // this is NOT a vector in the transverse plane! It has eta != 0.
-          SVfitTransverseMassTauUp = algoTauUp.transverseMass();
+	  //          SVfitTransverseMassTauUp = algoTauUp.transverseMass();
         }
         else
           SVfitMassTauUp = -111; // -111: SVfit failed (cfr: -999: SVfit not computed)
@@ -492,7 +492,7 @@ void SVfitInterface::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
           SVphiUncTauDown = algoTauDown.phiUncert();
           SVMETRhoTauDown = algoTauDown.fittedMET().Rho();
           SVMETPhiTauDown = algoTauDown.fittedMET().Phi(); // this is NOT a vector in the transverse plane! It has eta != 0.
-          SVfitTransverseMassTauDown = algoTauDown.transverseMass();
+	  //          SVfitTransverseMassTauDown = algoTauDown.transverseMass();
         }
         else
           SVfitMassTauDown = -111; // -111: SVfit failed (cfr: -999: SVfit not computed)

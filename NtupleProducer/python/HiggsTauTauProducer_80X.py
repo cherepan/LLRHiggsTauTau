@@ -463,6 +463,8 @@ APPLYTESCORRECTION = APPLYTESCORRECTION if IsMC else False # always false if dat
 process.softTaus = cms.EDProducer("TauFiller",
    src = cms.InputTag("bareTaus"),
    genCollection = cms.InputTag("prunedGenParticles"),
+   PFCollection = cms.InputTag("packedPFCandidates"),
+   offlinebeamSpot = cms.InputTag("offlineBeamSpot"),
    vtxCollection = cms.InputTag("goodPrimaryVertices"),
    cut = cms.string(TAUCUT),
    discriminator = cms.string(TAUDISCRIMINATOR),
@@ -793,10 +795,24 @@ process.SVbypass = cms.EDProducer ("SVfitBypass",
 ## ----------------------------------------------------------------------
 ## Ntuplizer
 ## ----------------------------------------------------------------------
+
+
+print "Run Ntuplizer"
+
+
+process.EvntCounterA = cms.EDAnalyzer('EventCounter',
+                                      CounterType    = cms.untracked.string("AllEvents"),
+                                      gensrccounter = cms.InputTag('prunedGenParticles'),
+                                      GenEventInfo   = cms.InputTag('generator'),
+                                      DataMCType    = cms.untracked.string("dy_ll")
+)
+
+
 process.HTauTauTree = cms.EDAnalyzer("HTauTauNtuplizer",
                       fileName = cms.untracked.string ("CosaACaso"),
                       applyFSR = cms.bool(APPLYFSR),
                       IsMC = cms.bool(IsMC),
+                      do_MCSummary = cms.bool(IsMC),
                       doCPVariables = cms.bool(doCPVariables),               
                       vtxCollection = cms.InputTag("offlineSlimmedPrimaryVertices"),
                       puCollection = cms.InputTag("slimmedAddPileupInfo"),
@@ -827,7 +843,9 @@ process.HTauTauTree = cms.EDAnalyzer("HTauTauNtuplizer",
                       l1extraIsoTau = cms.InputTag("l1extraParticles", "IsoTau"),
                       HT = cms.InputTag("externalLHEProducer"),
                       beamSpot = cms.InputTag("offlineBeamSpot"),
-                      nBadMu = cms.InputTag("removeBadAndCloneGlobalMuons")               
+                      PrunedGenCollection = cms.InputTag("prunedGenParticles"),
+                      nBadMu = cms.InputTag("removeBadAndCloneGlobalMuons"),
+                      DataMCType    = cms.untracked.string("dy_ll")
                       )
 if USE_NOHFMET:
     process.HTauTauTree.metCollection = cms.InputTag("slimmedMETsNoHF")
@@ -846,7 +864,7 @@ else:
 #print particles gen level - DEBUG purposes
 process.load("SimGeneral.HepPDTESSource.pythiapdt_cfi")
 process.printTree = cms.EDAnalyzer("ParticleListDrawer",
-  maxEventsToPrint = cms.untracked.int32(10),
+ maxEventsToPrint = cms.untracked.int32(10),
   printVertex = cms.untracked.bool(False),
   src = cms.InputTag("prunedGenParticles")
 )
@@ -855,10 +873,11 @@ process.printTree = cms.EDAnalyzer("ParticleListDrawer",
 ## Paths
 ##
 process.PVfilter = cms.Path(process.goodPrimaryVertices)
-
+print "Run Sequence"
 # Prepare lepton collections
 process.Candidates = cms.Sequence(
     #process.printTree         + # just for debug, print MC particles
+    process.EvntCounterA   +
     process.nEventsTotal      +
     #process.hltFilter         + 
     process.nEventsPassTrigger+

@@ -20,6 +20,15 @@
 #include <DataFormats/PatCandidates/interface/PackedGenParticle.h>
 #include <DataFormats/HepMCCandidate/interface/GenStatusFlags.h>
 #include "LLRHiggsTauTau/NtupleProducer/interface/GenHelper.h"
+
+#include "LLRHiggsTauTau/NtupleProducer/interface/TauDecay_CMSSW.h"
+#include "Validation/EventGenerator/interface/PdtPdgMini.h"
+#include "LLRHiggsTauTau/NtupleProducer/interface//DataMCType.h"
+
+
+#include "DataFormats/ParticleFlowCandidate/interface/PFCandidate.h"
+#include "DataFormats/ParticleFlowCandidate/interface/PFCandidateFwd.h"
+
 //#include <LLRHiggsTauTau/NtupleProducer/interface/DaughterDataHelpers.h>
 
 #include <vector>
@@ -50,6 +59,8 @@ class GenFiller : public edm::EDProducer {
   //std::vector<reco::GenParticle> tauHadcands_; // gen H tau build in this class
   std::vector<int> tauHadcandsMothers_; // contains the index in the cands_ vector of the tauh mother
   const bool storeLightFlavAndGlu_;
+
+
 };
 
 // ------------------------------------------------------------------
@@ -64,12 +75,16 @@ storeLightFlavAndGlu_(iConfig.getParameter<bool>("storeLightFlavAndGlu"))
 
 void GenFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
+
+
     Handle <edm::View<reco::GenParticle> > genHandle;
     iEvent.getByToken (src_, genHandle);
     cands_.clear();
     //tauHadcands_.clear();
     tauHadcandsMothers_.clear();
     
+ 
+
     // output collection
     auto_ptr<pat::GenericParticleCollection> result( new pat::GenericParticleCollection );
     
@@ -79,14 +94,15 @@ void GenFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     // tau decays are analyzed here to build tauH candidates and put them in the list
     for (unsigned int iGen = 0; iGen < Ngen; iGen++)
     {
-        const GenParticle& genP = (*genHandle)[iGen];
-        if (IsInteresting (genP))
-        {
-            cands_.push_back (&genP); 
-        }
-    }    
-    
-    // loop on all previously filtered Gen Particles and establish relations between them + set flags
+      const GenParticle& genP = (*genHandle)[iGen];
+      if (IsInteresting (genP))
+	{
+	  cands_.push_back (&genP); 
+	}
+    }
+
+
+     // loop on all previously filtered Gen Particles and establish relations between them + set flags
     unsigned int NGenSel = cands_.size();
     if (DEBUG) cout << "SELECTED PARTICLES: " << NGenSel << endl;
     for (unsigned int iGen = 0; iGen < NGenSel; iGen++)
@@ -224,7 +240,7 @@ void GenFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	  genhelper::GetTausDaughters(*genPClone,tauDaughters,true,false);
 	  int detailedDecayMode = genhelper::getDetailedTauDecayMode(tauDaughters);
 	  filtGenP.addUserInt("tauGenDetailedDecayMode", detailedDecayMode);
-	  
+	  if(DEBUG) cout<<"detailedDecayMode  tau decay mode" << detailedDecayMode <<endl;
 	  reco::GenParticleRef leadChParticleRef = genhelper::GetLeadChParticle(tauDaughters);
 
 	  TLorentzVector p4LeadingChParticle(leadChParticleRef->px(),
@@ -292,7 +308,7 @@ void GenFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	}
         result->push_back (tauH);
 	result->push_back (tauH_neutral);
-    }        
+    }       
     iEvent.put(result);
 }
 

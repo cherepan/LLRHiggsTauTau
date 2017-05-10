@@ -23,7 +23,7 @@ USEPAIRMET=False # input to SVfit: true: MVA pair MET; false: PFmet (HF inclusio
 APPLYMETCORR=False # flag to enable (True) and disable (False) Z-recoil corrections for MVA MET response and resolution
 USE_NOHFMET = False # True to exclude HF and run on silver json
 
-SVFITBYPASS=False # use SVFitBypass module, no SVfit computation, adds dummy userfloats for MET and SVfit mass
+SVFITBYPASS=True#False # use SVFitBypass module, no SVfit computation, adds dummy userfloats for MET and SVfit mass
 BUILDONLYOS=False #If true don't create the collection of SS candidates (and thus don't run SV fit on them)
 APPLYTESCORRECTION=False # shift the central value of the tau energy scale before computing up/down variations
 COMPUTEUPDOWNSVFIT=True # compute SVfit for up/down TES variation
@@ -75,9 +75,10 @@ process.source = cms.Source("PoolSource",
     # '/store/mc/RunIIFall15MiniAODv2/SUSYGluGluToHToTauTau_M-160_TuneCUETP8M1_13TeV-pythia8/MINIAODSIM/PU25nsData2015v1_76X_mcRun2_asymptotic_v12-v1/50000/12184969-3DB8-E511-879B-001E67504A65.root', #76X MC
     )
 )
-
+process.load("FWCore.MessageService.MessageLogger_cfi")
+process.MessageLogger.cerr.FwkReport.reportEvery = 500
 #Limited nEv for testing purposes. -1 to run all events
-process.maxEvents.input = 1000
+process.maxEvents.input = 4000
 
 # JSON mask for data --> defined in the lumiMask file
 # from JSON file
@@ -88,9 +89,21 @@ process.maxEvents.input = 1000
 ##
 ## Output file
 ##
+# Silence output
+
+#process.MessageLogger.categories.append('onlyError')
+#process.MessageLogger.cerr.onlyError=cms.untracked.PSet(threshold  = cms.untracked.string('ERROR'))
+#process.MessageLogger.cerr.threshold='ERROR'
+#process.MessageLogger = cms.Service("MessageLogger",
+#	destinations = cms.untracked.vstring('log.txt')
+#)
+#process.MessageLogger.threshold = cms.untracked.string('ERROR')
+
+#processDumpFile = open('process.dump' , 'w')
+#print >> processDumpFile, process.dumpPython()
 
 process.TFileService=cms.Service('TFileService',fileName=cms.string('HTauTauAnalysis.root'))
-
+process.p = cms.Path(process.Candidates)
 if DO_ENRICHED:
     process.out = cms.OutputModule("PoolOutputModule",
         fileName = cms.untracked.string('Enriched_miniAOD.root'),
@@ -122,18 +135,5 @@ if DO_ENRICHED:
 
 #process.options = cms.PSet(skipEvent =  cms.untracked.vstring('ProductNotFound'))
 #process.p = cms.EndPath(process.HTauTauTree)
-process.p = cms.Path(process.Candidates)
+#process.p = cms.Path(process.Candidates)
 
-# Silence output
-process.load("FWCore.MessageService.MessageLogger_cfi")
-process.MessageLogger.cerr.FwkReport.reportEvery = 1000
-#process.MessageLogger.categories.append('onlyError')
-#process.MessageLogger.cerr.onlyError=cms.untracked.PSet(threshold  = cms.untracked.string('ERROR'))
-#process.MessageLogger.cerr.threshold='ERROR'
-#process.MessageLogger = cms.Service("MessageLogger",
-#	destinations = cms.untracked.vstring('log.txt')
-#)
-#process.MessageLogger.threshold = cms.untracked.string('ERROR')
-
-#processDumpFile = open('process.dump' , 'w')
-#print >> processDumpFile, process.dumpPython()

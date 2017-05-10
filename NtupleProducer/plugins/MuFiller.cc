@@ -111,7 +111,6 @@ MuFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   // Output collection
   auto_ptr<pat::MuonCollection> result( new pat::MuonCollection() );
-
   for (unsigned int i = 0; i< muonHandle->size(); ++i){
     //---Clone the pat::Muon
     pat::Muon l(*((*muonHandle)[i].get()));
@@ -256,7 +255,7 @@ MuFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     l.addUserFloat("genPx",px);
     l.addUserFloat("genPy",py);
     l.addUserFloat("genPz",pz);
-    l.addUserFloat("genE",E);    
+    l.addUserFloat("genE",E);     
     l.addUserInt("status", status);
     l.addUserInt("id", id);
     l.addUserFloat("fromH",fromH);

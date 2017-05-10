@@ -2,4 +2,14 @@
   <class name="edm::Ptr<pat::PFParticle>"/>
   <class name="std::vector<edm::Ptr<pat::PFParticle> >"/>
   <class name="pat::UserHolder<std::vector<edm::Ptr<pat::PFParticle> > >"/>
+  <class name="pat::UserHolder<std::vector<double, std::allocator<double> > >" />
+  <class name="pat::UserHolder<std::vector<std::vector<double, std::allocator<double> > > >" />
+  <class name="std::vector<double, std::allocator<double> > " />
+  <class name="std::vector<std::vector<double, std::allocator<double> > > " />
+  <class name="std::vector< std::vector<std::vector<double > > >  " />
+
+  <class name="std::vector< std::vector<int > >   " />
+  <class name="std::vector< std::vector<unsigned int > >   " />
+
+
 </lcgdict>

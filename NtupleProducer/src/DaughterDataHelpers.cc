@@ -45,6 +45,7 @@ float userdatahelpers::getUserFloat(const reco::Candidate* c, const char* name){
   return 0;
 }
 
+
 int userdatahelpers::getUserInt(const reco::Candidate* c, const char* name){
   const reco::Candidate* d;
   if(c->hasMasterClone()) d = c->masterClone().get();
@@ -94,6 +95,8 @@ bool  userdatahelpers::hasUserFloat  (const reco::Candidate* c, const char* name
   }
   return false;  
 }
+
+
 
 const PhotonPtrVector* userdatahelpers::getUserPhotons(const reco::Candidate* c){
   const reco::Candidate* d = c->masterClone().get();
