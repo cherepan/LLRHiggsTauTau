@@ -415,7 +415,7 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	totalPx+=(*itr)->p4().px();
       }
     }
-  
+
     //--- PF ISO
     float PFChargedHadIso   = l.chargedHadronIso();
     float PFNeutralHadIso   = l.neutralHadronIso();
@@ -434,7 +434,7 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     float leadChargedParticlePt=l.leadCand()->pt();
     float trackRefPt = (l.leadChargedHadrCand().isNonnull() ? l.leadChargedHadrCand()->pt() : 0.);
 
-    
+
     //Decay mode
     //int decayMode = -1;
     //int A = l.signalPFChargedHadrCands().size();
@@ -453,7 +453,7 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     float IPError = l.edB(pat::Electron::PV3D);
     float SIP     = IP/IPError;
     */
-    
+
     float dxy = 999.;
     float dz  = 999.;
     if (vertexs->size()>0) {
@@ -474,7 +474,7 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
      // }
     }
   
-   
+ 
     //--- Embed user variables
     l.addUserInt("isTESShifted",isTESShifted);
     l.addUserFloat("HPSDiscriminator",tauid); 

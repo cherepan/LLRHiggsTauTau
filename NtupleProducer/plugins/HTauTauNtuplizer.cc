@@ -1524,7 +1524,11 @@ void HTauTauNtuplizer::analyze(const edm::Event& event, const edm::EventSetup& e
   
   //  std::vector<const reco::Candidate *> genZs;
   // std::vector<const reco::Candidate *> genZLeps;
-  
+  DataMCType DMT;
+  _DataMC_Type = DMT.GetType();
+  if (event.isRealData()) {
+    _DataMC_Type = DataMCType::Data;
+  }
   _npv = vertexs->size();
    if (theisMC) {
     Handle<std::vector< PileupSummaryInfo > >  PupInfo;
@@ -3023,8 +3027,6 @@ void HTauTauNtuplizer::fillMCTruth(const edm::Event& iEvent, const edm::EventSet
     DataMC_Type_idx = DMT.GetType();
     Handle <edm::View<reco::GenParticle> > genHandle;
     iEvent.getByToken (ThePrunedGenTag_, genHandle);
-
-
     myTauDecay.CheckForSignal(DataMC_Type_idx, genHandle);
     _DataMC_Type=DataMC_Type_idx;
     // unsigned int DataMC_Type_idx;
@@ -3032,7 +3034,6 @@ void HTauTauNtuplizer::fillMCTruth(const edm::Event& iEvent, const edm::EventSet
     // DataMCType DMT;
     // DataMC_Type_idx = DMT.GetType("dy_ll");
     // myTauDecay.CheckForSignal(DataMC_Type_idx, prunedHandle);
-    //    cout<<"fillMCTruth DataMC_Type_idx   =" << DataMC_Type_idx <<endl;
  
     if (do_MCComplete_) {
       // 			for (reco::GenParticleCollection::const_iterator itr = genParticles->begin(); itr != genParticles->end(); ++itr) {

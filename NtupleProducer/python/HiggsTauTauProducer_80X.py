@@ -844,8 +844,7 @@ process.HTauTauTree = cms.EDAnalyzer("HTauTauNtuplizer",
                       HT = cms.InputTag("externalLHEProducer"),
                       beamSpot = cms.InputTag("offlineBeamSpot"),
                       PrunedGenCollection = cms.InputTag("prunedGenParticles"),
-                      nBadMu = cms.InputTag("removeBadAndCloneGlobalMuons"),
-                      DataMCType    = cms.untracked.string("dy_ll")
+                      nBadMu = cms.InputTag("removeBadAndCloneGlobalMuons")
                       )
 if USE_NOHFMET:
     process.HTauTauTree.metCollection = cms.InputTag("slimmedMETsNoHF")
