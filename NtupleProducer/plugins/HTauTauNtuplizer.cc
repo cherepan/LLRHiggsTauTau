@@ -273,6 +273,7 @@ class HTauTauNtuplizer : public edm::EDAnalyzer {
   Int_t   _lheNOutB;
   Int_t   _lheNOutC;
   Int_t   _DataMC_Type;
+  bool Event_isRealData;
   Float_t _npu;
   Int_t   _PUNumInteractions;
   Float_t _PUReweight;
@@ -1030,6 +1031,7 @@ void HTauTauNtuplizer::Initialize(){
   _MC_weight=0.;
   _DataMC_Type=0;
    DataMC_Type_idx=0;
+   Event_isRealData=0;
   _npv=0;
   _lheHt=0;
   _lheNOutPartons=0;
@@ -1235,7 +1237,7 @@ void HTauTauNtuplizer::beginJob(){
     myTree->Branch("genpart_pz", &_genpart_pz);
     myTree->Branch("genpart_e", &_genpart_e);
     myTree->Branch("DataMC_Type_idx" ,&_DataMC_Type, "DataMC_Type_idx/I");
-
+    myTree->Branch("Event_isRealData", &Event_isRealData, "Event_isRealData/I");
     if(doCPVariables){
       myTree->Branch("genpart_pca_x",&_genpart_pca_x);
       myTree->Branch("genpart_pca_y",&_genpart_pca_y);
@@ -1529,6 +1531,7 @@ void HTauTauNtuplizer::analyze(const edm::Event& event, const edm::EventSetup& e
   if (event.isRealData()) {
     _DataMC_Type = DataMCType::Data;
   }
+  Event_isRealData = event.isRealData();
   _npv = vertexs->size();
    if (theisMC) {
     Handle<std::vector< PileupSummaryInfo > >  PupInfo;
