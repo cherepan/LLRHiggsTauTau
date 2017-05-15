@@ -176,7 +176,8 @@ class HTauTauNtuplizer : public edm::EDAnalyzer {
   float ComputeMT (math::XYZTLorentzVector visP4, float METx, float METy);
   static bool ComparePairsbyPt(pat::CompositeCandidate i, pat::CompositeCandidate j);
   static bool ComparePairsbyIso(pat::CompositeCandidate i, pat::CompositeCandidate j);
-
+  static bool isGoodGenParticle(const reco::GenParticle &GenPar);
+  
   bool refitPV(const edm::Event & iEvent, const edm::EventSetup & iSetup);
   bool findPrimaryVertices(const edm::Event & iEvent, const edm::EventSetup & iSetup);
   TVector3 getPCA(const edm::Event & iEvent, const edm::EventSetup & iSetup,
@@ -353,11 +354,7 @@ class HTauTauNtuplizer : public edm::EDAnalyzer {
   std::vector<Int_t> _genpart_pdg;
   std::vector<Int_t> _genpart_status;
   
-  std::vector<int> MC_pdgid;
-  std::vector<std::vector<double> > MC_p4;
-  std::vector<std::vector<int> > MC_childpdgid;
-  std::vector<int> MC_charge;
-  std::vector<unsigned int> MC_midx;
+
   
   // Signal particles Z, W, H0, Hpm
   std::vector<std::vector<double> > MCSignalParticle_p4;
@@ -375,7 +372,14 @@ class HTauTauNtuplizer : public edm::EDAnalyzer {
   std::vector<std::vector<int> > MCTauandProd_charge;
   std::vector<unsigned int> MCTau_JAK;
   std::vector<unsigned int> MCTau_DecayBitMask;
-  
+  std::vector<std::vector<float> > MC_p4;
+  std::vector<int> MC_pdgid;
+  std::vector<std::vector<int> > MC_childpdgid;
+  std::vector<std::vector<int> > MC_childidx;
+  std::vector<int> MC_charge;
+  std::vector<int> MC_midx;
+  std::vector<int> MC_status;
+
   //std::vector<Int_t> _genpart_mothInd;
   std::vector<Int_t> _genpart_HMothInd;
   std::vector<Int_t> _genpart_MSSMHMothInd;
@@ -709,6 +713,7 @@ HTauTauNtuplizer::HTauTauNtuplizer(const edm::ParameterSet& pset) : reweight(),
   theFSR = pset.getParameter<bool>("applyFSR");
   theisMC = pset.getParameter<bool>("IsMC");
   do_MCSummary_=pset.getParameter<bool>("do_MCSummary");
+  do_MCComplete_=pset.getParameter<bool>("do_MCComplete");
   doCPVariables = pset.getParameter<bool>("doCPVariables");
   computeQGVar = pset.getParameter<bool>("computeQGVar");
   theJECName = pset.getUntrackedParameter<string>("JECset");
@@ -1046,6 +1051,17 @@ void HTauTauNtuplizer::Initialize(){
   _MC_weight_scale_muF2=0.;
   _MC_weight_scale_muR0p5=0.;
   _MC_weight_scale_muR2=0.;
+  
+  if (do_MCComplete_) {
+    MC_p4.clear();
+    MC_pdgid.clear();
+    MC_charge.clear();
+    MC_midx.clear();
+    MC_status.clear();
+    MC_childpdgid.clear();
+    MC_childidx.clear();
+  }
+
   if (do_MCSummary_) {
     MCSignalParticle_p4.clear();
     MCSignalParticle_pdgid.clear();
@@ -1305,6 +1321,18 @@ void HTauTauNtuplizer::beginJob(){
     myTree->Branch("MCTau_JAK", &MCTau_JAK);
     myTree->Branch("MCTau_DecayBitMask", &MCTau_DecayBitMask);
   }
+
+  if (do_MCComplete_) {
+    myTree->Branch("MC_p4", &MC_p4);
+    myTree->Branch("MC_pdgid", &MC_pdgid);
+    myTree->Branch("MC_charge", &MC_charge);
+    myTree->Branch("MC_midx", &MC_midx);
+    myTree->Branch("MC_childpdgid", &MC_childpdgid);
+    myTree->Branch("MC_childidx", &MC_childidx);
+    myTree->Branch("MC_status", &MC_status);
+  }
+
+
   myTree->Branch("SVfitMass",&_SVmass);
   myTree->Branch("SVfitTransverseMass",&_SVmassTransverse);
   myTree->Branch("SVfit_pt", &_SVpt);
@@ -2995,18 +3023,8 @@ void HTauTauNtuplizer::FillGenJetInfo(const edm::Event& event)
 
 }
 
-
-
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
-
-
-
-
 void HTauTauNtuplizer::fillMCTruth(const edm::Event& iEvent, const edm::EventSetup& iSetup) {
-
-
   // 	if (!iEvent.isRealData()){
 // 		edm::Handle<GenEventInfoProduct> GenEventInfoProduct;
 // 		iEvent.getByLabel("generator", GenEventInfoProduct);
@@ -3016,7 +3034,6 @@ void HTauTauNtuplizer::fillMCTruth(const edm::Event& iEvent, const edm::EventSet
 // 		GenEventInfoProduct_qScale = GenEventInfoProduct->qScale();
 // 		GenEventInfoProduct_alphaQCD = GenEventInfoProduct->alphaQCD();
 // 		GenEventInfoProduct_alphaQED = GenEventInfoProduct->alphaQED();
-
 // 		// info for pdf systematics
 // 		GenEventInfoProduct_id1 = GenEventInfoProduct->pdf()->id.first;
 // 		GenEventInfoProduct_id2 = GenEventInfoProduct->pdf()->id.second;
@@ -3032,62 +3049,53 @@ void HTauTauNtuplizer::fillMCTruth(const edm::Event& iEvent, const edm::EventSet
     iEvent.getByToken (ThePrunedGenTag_, genHandle);
     myTauDecay.CheckForSignal(DataMC_Type_idx, genHandle);
     _DataMC_Type=DataMC_Type_idx;
-    // unsigned int DataMC_Type_idx;
-    // TauDecay_CMSSW myTauDecay;
-    // DataMCType DMT;
-    // DataMC_Type_idx = DMT.GetType("dy_ll");
-    // myTauDecay.CheckForSignal(DataMC_Type_idx, prunedHandle);
- 
     if (do_MCComplete_) {
-      // 			for (reco::GenParticleCollection::const_iterator itr = genParticles->begin(); itr != genParticles->end(); ++itr) {
-      // 				if ( !isGoodGenParticle(*itr) ) continue;
-      // 				MC_pdgid.push_back(itr->pdgId());
-      // 				MC_charge.push_back(itr->charge());
-      // 				std::vector<float> iMC_p4;
-      // 				iMC_p4.push_back(itr->p4().E());
-      // 				iMC_p4.push_back(itr->p4().Px());
-      // 				iMC_p4.push_back(itr->p4().Py());
-      // 				iMC_p4.push_back(itr->p4().Pz());
+      for (unsigned int iGenPartilce = 0; iGenPartilce < genHandle->size(); iGenPartilce++){
+	const GenParticle& genP = (*genHandle)[iGenPartilce];
+	if ( !isGoodGenParticle(genP) ) continue;
+	MC_pdgid.push_back(genP.pdgId());
+	MC_charge.push_back(genP.charge());
+	std::vector<float> iMC_p4;
+	iMC_p4.push_back(genP.p4().E());
+	iMC_p4.push_back(genP.p4().Px());
+	iMC_p4.push_back(genP.p4().Py());
+	iMC_p4.push_back(genP.p4().Pz());
       
-      // 				MC_p4.push_back(iMC_p4);
-      // 				MC_midx.push_back(-1);
-      // 				MC_status.push_back(itr->status());
-      // 				MC_childpdgid.push_back(std::vector<int>());
-      // 				MC_childidx.push_back(std::vector<int>());
-      // 			}
-      // 			unsigned int i = 0;
-      //			for (reco::GenParticleCollection::const_iterator itr = genParticles->begin(); itr != genParticles->end(); ++itr) {
-      // 				if ( !isGoodGenParticle(*itr) ) continue;
-      // 				for (unsigned int d = 0; d < itr->numberOfDaughters(); d++) {
-      // 					const reco::GenParticle *dau = static_cast<const reco::GenParticle*>(itr->daughter(d));
-      // 					unsigned int j = 0;
-      // 					for (reco::GenParticleCollection::const_iterator jtr = genParticles->begin(); jtr != genParticles->end(); ++jtr){
-      // 						if ( !isGoodGenParticle(*jtr) ) continue;
-      // 						if (dau->status() == jtr->status() && dau->p4() == jtr->p4() && dau->pdgId() == jtr->pdgId() && dau->numberOfMothers() == jtr->numberOfMothers()
-      // 								&& dau->numberOfDaughters() == jtr->numberOfDaughters()) {
-      // 							MC_midx.at(j) = i;
-      // 							MC_childidx.at(i).push_back(j);
-      // 							MC_childpdgid.at(i).push_back(dau->pdgId());
-      // 						}
-      // 						j++;
-      // 					}
-      // 				}
-      // 				i++;
-      // 			}
-      
-    }
-
+	MC_p4.push_back(iMC_p4);
+	MC_midx.push_back(-1);
+	MC_status.push_back(genP.status());
+	MC_childpdgid.push_back(std::vector<int>());
+	MC_childidx.push_back(std::vector<int>());
+      }
+	unsigned int i = 0;
+	for (unsigned int iGenPartilce = 0; iGenPartilce < genHandle->size(); iGenPartilce++){
+	  const GenParticle& genP = (*genHandle)[iGenPartilce];
+	  if ( !isGoodGenParticle(genP) ) continue;
+	  for(unsigned int d = 0; d <(*genHandle)[iGenPartilce].numberOfDaughters(); d++){
+	    const reco::Candidate *dau=(*genHandle)[iGenPartilce].daughter(d);
+	    unsigned int j = 0;
+	    for (unsigned int jGenPartilce = 0; jGenPartilce < genHandle->size(); jGenPartilce++){
+	      const GenParticle& jgenP = (*genHandle)[jGenPartilce];
+	      
+	      if ( !isGoodGenParticle(jgenP) ) continue;
+	      if (dau->status() ==jgenP.status() && dau->p4() == jgenP.p4() && dau->pdgId() == jgenP.pdgId() && dau->numberOfMothers() == jgenP.numberOfMothers()
+		  && dau->numberOfDaughters() == jgenP.numberOfDaughters()) {
+		MC_midx.at(j) = i;
+		MC_childidx.at(i).push_back(j);
+		MC_childpdgid.at(i).push_back(dau->pdgId()); 
+	      }
+	      j++;
+	    }
+	  }
+	  i++;
+	}
+      }
     if (do_MCSummary_) {
       DataMCType DMT;
-      
-      
-      // 			for (reco::GenParticleCollection::const_iterator itr = genParticles->begin(); itr != genParticles->end(); ++itr) {
       for (unsigned int iGenPartilce = 0; iGenPartilce < genHandle->size(); iGenPartilce++){
 	const GenParticle& genP = (*genHandle)[iGenPartilce];
 	if(DMT.isSignalParticle((*genHandle)[iGenPartilce].pdgId()) && genP.numberOfDaughters() > 1){
-	  
-	  //	  if (DMT.isSignalParticle(itr->pdgId())) {
-	    MCSignalParticle_childpdgid.push_back(std::vector<int>());
+	  MCSignalParticle_childpdgid.push_back(std::vector<int>());
 	    MCSignalParticle_pdgid.push_back(genP.pdgId());
 	    MCSignalParticle_charge.push_back(genP.charge());
 	    MCSignalParticle_Tauidx.push_back(std::vector<unsigned int>());
@@ -3150,28 +3158,7 @@ void HTauTauNtuplizer::fillMCTruth(const edm::Event& iEvent, const edm::EventSet
       }
     }
   }
-
-  
-
-
-
-
-
-
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -3421,7 +3408,15 @@ bool HTauTauNtuplizer::ComparePairsbyPt(pat::CompositeCandidate i, pat::Composit
   return true;
 }
 
-
+bool HTauTauNtuplizer::isGoodGenParticle(const reco::GenParticle &GenPar){
+  //	if (GenPar.p4().Pt() > MCCompletePtCut_) return true;  // in case of you want to apply some cuts on it
+	int id = abs(GenPar.pdgId());
+	if (id == PDGInfo::Z0 || id == PDGInfo::W_plus) return true;
+	if (id == PDGInfo::Higgs0) return true;
+	if (id >= PDGInfo::Z_prime0 && id <= PDGInfo::Higgs_plus) return true; //BSM resonances
+	if (id == PDGInfo::t) return true;
+	return false;
+}
 float HTauTauNtuplizer::ComputeMT (math::XYZTLorentzVector visP4, float METx, float METy)
 {
     math::XYZTLorentzVector METP4 (METx, METy, 0, 0); // I only care about transverse plane
