@@ -27,7 +27,7 @@ SVFITBYPASS=True#False # use SVFitBypass module, no SVfit computation, adds dumm
 BUILDONLYOS=False #If true don't create the collection of SS candidates (and thus don't run SV fit on them)
 APPLYTESCORRECTION=False # shift the central value of the tau energy scale before computing up/down variations
 COMPUTEUPDOWNSVFIT=True # compute SVfit for up/down TES variation
-doCPVariables=False # compute CP variables and PV refit
+doCPVariables=True # compute CP variables and PV refit
 COMPUTEQGVAR = False # compute QG Tagger for jets
 IsMC=True
 Is25ns=True
@@ -84,7 +84,7 @@ process.source = cms.Source("PoolSource",
 process.load("FWCore.MessageService.MessageLogger_cfi")
 process.MessageLogger.cerr.FwkReport.reportEvery = 500
 #Limited nEv for testing purposes. -1 to run all events
-process.maxEvents.input = 4000
+process.maxEvents.input = 1000
 
 # JSON mask for data --> defined in the lumiMask file
 # from JSON file

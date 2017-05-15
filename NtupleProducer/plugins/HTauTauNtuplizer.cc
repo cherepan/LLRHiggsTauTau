@@ -20,7 +20,7 @@
 #include <TNtuple.h>
 //#include <XYZTLorentzVector.h>
 
-// user include files
+// user include files 
 #include "FWCore/Framework/interface/EventSetup.h"
 #include "FWCore/Framework/interface/Frameworkfwd.h"
 #include "SimDataFormats/GeneratorProducts/interface/GenEventInfoProduct.h"
@@ -1198,7 +1198,6 @@ void HTauTauNtuplizer::beginJob(){
   myTree->Branch("daughters_pz",&_daughters_pz);
   myTree->Branch("daughters_e",&_daughters_e);
   myTree->Branch("daughters_charge",&_daughters_charge);
-
   if(doCPVariables){
     myTree->Branch("daughters_charged_px",&_daughters_charged_px);
     myTree->Branch("daughters_charged_py",&_daughters_charged_py);
@@ -1542,7 +1541,7 @@ void HTauTauNtuplizer::analyze(const edm::Event& event, const edm::EventSetup& e
 { 
   //  if(DEBUG)printf("\n\n\n===New Event===   "); 
    Initialize();
-   doCPVariables=true;if (doCPVariables) findPrimaryVertices(event, eSetup);
+   if (doCPVariables) findPrimaryVertices(event, eSetup);
   
   Handle<vector<reco::Vertex> >  vertexs;
   //event.getByLabel("offlineSlimmedPrimaryVertices",vertex);
@@ -2296,7 +2295,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
         pfour+=fsr->p4();
       }
     } 
-    
+  
     _daughters_px.push_back( (float) pfour.X());
     _daughters_py.push_back( (float) pfour.Y());
     _daughters_pz.push_back( (float) pfour.Z());
@@ -2402,7 +2401,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
     TVector3 pcaRefitPV = getPCA(event, setup, cand->bestTrack(), aPVRefitPoint);
     TVector3 pcaGenPV;
     if(theisMC) pcaGenPV = getPCA(event, setup, cand->bestTrack(), aPVGenPoint);
-
+  
     if(type==ParticleType::MUON){	
       muIDflag=userdatahelpers::getUserInt(cand,"muonID");
       discr = (float) muIDflag; // not really needed, will use the muonID branch in ntuples...
@@ -2502,13 +2501,8 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
       numParticlesIsoCone = userdatahelpers::getUserInt (cand, "numParticlesIsoCone");
       leadChargedParticlePt = userdatahelpers::getUserFloat (cand, "leadChargedParticlePt");
       trackRefPt = userdatahelpers::getUserFloat (cand, "trackRefPt");
-      //     _PFTauSVPos.push_back(std::vector<double>());
-      //    _PFTauSVCov.push_back(std::vector<double>());
-      // _PFTauSVChi2NDofMatchingQuality.push_back(std::vector<double>());
 
-      // _PFTauPionsP4.push_back(std::vector<double>());
-      // _PFTauPionsCharge.push_back(std::vector<double>());
-
+    
       const pat::Tau *taon  = dynamic_cast<const pat::Tau*>(cand);
       if(taon){
 	pcaPV = getPCA(event, setup, taon->leadChargedHadrCand()->bestTrack(), aPVPoint);
@@ -2550,34 +2544,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
 	 }else {_PFTauPionsCharge.push_back(std::vector<double>());}
 
       }
-      //      std::vector<double> vec;
-      //  vec = userdatahelpers::getUserData<std::vector<double> >(cand,"myData");
-// pat::Muon const & myMuon = getMyMuonFromSomewhere();
-//    if ( myMuon.hasUserData("myData") == false ) break;
-//    UsersFavoriteData const & usersData = myMuon.userData<UsersFavoriteData>("myData");
-
-
-    // l.addUserData<std::vector<double > >( "SVChi2NDofMatchingQual",  SVChi2NDofMatchingQual);
-    // l.addUserData<std::vector<double > >( "SVPos", SVPos );
-    // l.addUserData<std::vector<double > >( "SVCov", SVCov);
-    // l.addUserData<std::vector<double > >( "iPionP4", iPionP4 );
-    // l.addUserData<std::vector<double > >( "iPionCharge",  iPionCharge);
-
-
-
-
-
-
-
-
-      // for(unsigned int ivec =0; ivec < (*SVPos).size(); ivec++){
-
-	
-      // 	cout<<"vec    000000000000000000000000000000000000000000000000000000000000000000 "<< (*SVPos).at(ivec) <<endl;
-      // 	}
-
-  
-      ntaus++;
+       ntaus++;
     }
     _discriminator.push_back(discr);
     _daughters_typeOfMuon.push_back(typeOfMuon);
@@ -2589,7 +2556,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
     _daughters_footprintCorrection.push_back(footprintCorrection);
     _daughters_neutralIsoPtSumWeight.push_back(neutralIsoPtSumWeight);
     _daughters_photonPtSumOutsideSignalCone.push_back(photonPtSumOutsideSignalCone);
-
+  
     _daughters_charge.push_back(cand->charge());
     _daughters_iseleBDT.push_back(isgood);
     _daughters_iseleWP80.push_back(isele80);
@@ -2634,7 +2601,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
     _daughters_numParticlesIsoCone.push_back(numParticlesIsoCone);
     _daughters_leadChargedParticlePt.push_back(leadChargedParticlePt);
     _daughters_trackRefPt.push_back(trackRefPt);
-
+  
     _dxy_innerTrack.push_back(dxy_innerTrack);
     _dz_innerTrack.push_back(dz_innerTrack);
     _daughters_rel_error_trackpt.push_back(error_trackpt);
