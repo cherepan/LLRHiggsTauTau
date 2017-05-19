@@ -67,8 +67,8 @@ else :
 ### ----------------------------------------------------------------------
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
-    '/store/mc/RunIISummer16MiniAODv2/DYJetsToLL_M-50_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/MINIAODSIM/PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6_ext1-v2/60000/4CBBCFDF-F8C6-E611-A5C2-6CC2173BBD40.root',
-    #    '/store/mc/RunIISummer16MiniAODv2/WJetsToLNu_HT-70To100_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/MINIAODSIM/PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6-v1/120000/048E5244-0EC7-E611-9707-0CC47A1E048A.root',
+#   '/store/mc/RunIISummer16MiniAODv2/DYJetsToLL_M-50_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/MINIAODSIM/PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6_ext1-v2/60000/4CBBCFDF-F8C6-E611-A5C2-6CC2173BBD40.root',
+        '/store/mc/RunIISummer16MiniAODv2/WJetsToLNu_HT-70To100_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/MINIAODSIM/PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6-v1/120000/048E5244-0EC7-E611-9707-0CC47A1E048A.root',
 # '/store/mc/RunIISummer16MiniAODv2/GluGluHToTauTau_M125_13TeV_powheg_herwigpp/MINIAODSIM/PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6-v1/50000/160AB096-19C9-E611-8E11-A0000420FE80.root',
  #'/store/mc/RunIISummer16MiniAODv2/ZZ_TuneCUETP8M1_13TeV-pythia8/MINIAODSIM/PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6_ext1-v1/80000/02C8895F-E8DA-E611-8CC9-0023AEEEB55F.root',
    
@@ -84,7 +84,7 @@ process.source = cms.Source("PoolSource",
 process.load("FWCore.MessageService.MessageLogger_cfi")
 process.MessageLogger.cerr.FwkReport.reportEvery = 500
 #Limited nEv for testing purposes. -1 to run all events
-process.maxEvents.input = 1000
+process.maxEvents.input = 50000
 
 # JSON mask for data --> defined in the lumiMask file
 # from JSON file

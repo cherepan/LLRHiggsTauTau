@@ -1251,8 +1251,8 @@ void HTauTauNtuplizer::beginJob(){
     myTree->Branch("genpart_py", &_genpart_py);
     myTree->Branch("genpart_pz", &_genpart_pz);
     myTree->Branch("genpart_e", &_genpart_e);
-    myTree->Branch("DataMC_Type_idx" ,&_DataMC_Type, "DataMC_Type_idx/I");
-    myTree->Branch("Event_isRealData", &Event_isRealData, "Event_isRealData/I");
+    myTree->Branch("DataMC_Type_idx" ,&_DataMC_Type);
+    myTree->Branch("Event_isRealData", &Event_isRealData);
     if(doCPVariables){
       myTree->Branch("genpart_pca_x",&_genpart_pca_x);
       myTree->Branch("genpart_pca_y",&_genpart_pca_y);
@@ -1559,6 +1559,7 @@ void HTauTauNtuplizer::analyze(const edm::Event& event, const edm::EventSetup& e
     _DataMC_Type = DataMCType::Data;
   }
   Event_isRealData = event.isRealData();
+  if(event.isRealData()!=0 or Event_isRealData!=0)  std::cout<< "event.isRealData(   "   <<event.isRealData() << " event 2   "<<Event_isRealData << " datamctype    " <<  _DataMC_Type<<std::endl;
   _npv = vertexs->size();
    if (theisMC) {
     Handle<std::vector< PileupSummaryInfo > >  PupInfo;
@@ -1823,7 +1824,7 @@ void HTauTauNtuplizer::analyze(const edm::Event& event, const edm::EventSetup& e
     _SVMetPhi.push_back(cand.userFloat("SVfit_METPhi"));
     _SVMetPhiTauUp.push_back  ( (hasUp   ? cand.userFloat("SVfit_METPhiTauUp")  : -999. ));
     _SVMetPhiTauDown.push_back( (hasDown ? cand.userFloat("SVfit_METPhiTauDown"): -999. ));
-
+  
     _metx.push_back(thisMETpx);
     _mety.push_back(thisMETpy);    
     _uncorrmetx.push_back(thisMETpx_uncorr);
@@ -1833,7 +1834,7 @@ void HTauTauNtuplizer::analyze(const edm::Event& event, const edm::EventSetup& e
     _metCov10.push_back(cand.userFloat("MEt_cov10"));
     _metCov11.push_back(cand.userFloat("MEt_cov11"));
     _metSignif.push_back(cand.userFloat("MEt_significance"));
-    
+  
     //if(DEBUG){
       //motherPoint[iMot]=dynamic_cast<const reco::Candidate*>(&*candi);
       //printf("%p %p %p\n",motherPoint[iMot],cand.daughter(0),cand.daughter(1));
@@ -2323,14 +2324,14 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
 
     //math::XYZTLorentzVector pfour(userdatahelpers::getUserFloat(cand,"genPx"),userdatahelpers::getUserFloat(cand,"genPy"),userdatahelpers::getUserFloat(cand,"genPz"),userdatahelpers::getUserFloat(cand,"genE"));
     //if(theisMC)_genDaughters.push_back(userdatahelpers::getUserFloat(cand,"fromH"));
-    
+  
     _softLeptons.push_back(cand);//This is needed also for FindCandIndex
     _pdgdau.push_back(cand->pdgId());
     _combreliso.push_back(userdatahelpers::getUserFloat(cand,"combRelIsoPF"));
     _combreliso03.push_back( userdatahelpers::hasUserFloat(cand,"combRelIsoPF03") ? userdatahelpers::getUserFloat(cand,"combRelIsoPF03") : -1 );
     _dxy.push_back(userdatahelpers::getUserFloat(cand,"dxy"));
     _dz.push_back(userdatahelpers::getUserFloat(cand,"dz"));
-    //_SIP.push_back(userdatahelpers::getUserFloat(cand,"SIP"));
+    //_SIP.push_back(userdatahelpers::getUserFloat(cand,"SIP")); 
     //int type = -1; 
     //if( userdatahelpers::hasUserInt(cand,"isTESShifted") ) type = ParticleType::TAU;
     //else if (userdatahelpers::hasUserInt(cand,"isPFMuon")) type = ParticleType::MUON;
@@ -2340,7 +2341,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
      if(cand->isMuon()) type = ParticleType::MUON;
      else if(cand->isElectron()) type = ParticleType::ELECTRON;
     _particleType.push_back(type);
-    
+  
 
     //Find closest jet for lepton MVA
     float dRmin_cand_jet = 0.4;
@@ -2385,7 +2386,12 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
     footprintCorrection,
     neutralIsoPtSumWeight,
     photonPtSumOutsideSignalCone;
-
+    std::vector<double> SVPos;
+    std::vector<double> SVCov;
+    std::vector<double> SVChi2NDof;
+    std::vector<std::vector<double>  >PionsP4;
+    std::vector<double> PionsCharge;
+	
     float dxy_innerTrack = -1., dz_innerTrack = -1., sip = -1., error_trackpt=-1.;
     int jetNDauChargedMVASel = -1;
     float miniRelIsoCharged = -1., miniRelIsoNeutral = -1.;
@@ -2461,7 +2467,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
       jetBTagCSV = closest_jet.bDiscriminator("pfCombinedInclusiveSecondaryVertexV2BJetTags");      
 
       lepMVA_mvaId = elemva_HZZ;
-
+    
     }else if(type==ParticleType::TAU){
      
       discr=userdatahelpers::getUserFloat(cand,"HPSDiscriminator");
@@ -2516,40 +2522,47 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
 	for(reco::CandidatePtrVector::const_iterator id=chCands.begin();id!=chCands.end(); ++id) chargedP4 += (*id)->p4();
 	for(reco::CandidatePtrVector::const_iterator id=neCands.begin();id!=neCands.end(); ++id) neutralP4 += (*id)->p4();
 	
-	std::vector<double> SVPos;
+
+
 	if(taon->hasUserData("SVPos")){
 	  for(unsigned int i =0; i < taon->userData<std::vector<double> >("SVPos")->size(); i++){SVPos.push_back(taon->userData<std::vector<double> >("SVPos")->at(i));  }
-	  _PFTauSVPos.push_back(SVPos);
-	} else { _PFTauSVPos.push_back(std::vector<double>());}
-	 std::vector<double> SVCov;
+	
+	} //else { _PFTauSVPos.push_back(std::vector<double>());}
+	
 	 if(taon->hasUserData("SVCov")){
 	   for(unsigned int i =0; i < taon->userData<std::vector<double> >("SVCov")->size(); i++){SVCov.push_back(taon->userData<std::vector<double> >("SVCov")->at(i));  }
-	   _PFTauSVPos.push_back(SVCov);
-	 }else { _PFTauSVCov.push_back(std::vector<double>());}
-	 std::vector<double> SVChi2NDof;
+
+	 }//else { _PFTauSVCov.push_back(std::vector<double>());}
 	 if(taon->hasUserData("SVChi2NDofMatchingQual")){
 	   for(unsigned int i =0; i < taon->userData<std::vector<double> >("SVChi2NDofMatchingQual")->size(); i++){SVChi2NDof.push_back(taon->userData<std::vector<double> >("SVChi2NDofMatchingQual")->at(i));  }
-	   _PFTauSVChi2NDofMatchingQuality.push_back(SVChi2NDof);
-	 } else {_PFTauSVChi2NDofMatchingQuality.push_back(std::vector<double>());}
-	 std::vector<std::vector<double>  >PionsP4;
+	 
+	 } //else {_PFTauSVChi2NDofMatchingQuality.push_back(std::vector<double>());}
+	 
 	 if(taon->hasUserData("iPionP4")){
 	   for(unsigned int i =0; i < taon->userData<std::vector<std::vector<double> > >("iPionP4")->size(); i++){PionsP4.push_back(taon->userData<std::vector<std::vector<double> > >("iPionP4")->at(i)); }
-	   _PFTauPionsP4.push_back(PionsP4);
+	   
 	   //	   for(unsigned int i =0; i< PionsP4.size(); i++){ cout<<"pions energy  "<< PionsP4.at(i).at(0)<< endl;    }
-	 }else {_PFTauPionsP4.push_back(std::vector<std::vector<double> >()); }
-	 std::vector<double> PionsCharge;
+	 }//else {_PFTauPionsP4.push_back(std::vector<std::vector<double> >()); }
+	 
 	 if(taon->hasUserData("iPionCharge")){
 	   for(unsigned int i =0; i < taon->userData<std::vector<double> >("iPionCharge")->size(); i++){PionsCharge.push_back(taon->userData<std::vector<double> >("iPionCharge")->at(i));  }
-	   _PFTauPionsCharge.push_back(PionsCharge);
-	 }else {_PFTauPionsCharge.push_back(std::vector<double>());}
+	  
+	 }//else {_PFTauPionsCharge.push_back(std::vector<double>());}
 
       }
        ntaus++;
     }
+    _PFTauSVPos.push_back(SVPos);
+    _PFTauSVPos.push_back(SVCov);
+    _PFTauSVChi2NDofMatchingQuality.push_back(SVChi2NDof);
+    _PFTauPionsP4.push_back(PionsP4);
+    _PFTauPionsCharge.push_back(PionsCharge);
+     
+
     _discriminator.push_back(discr);
     _daughters_typeOfMuon.push_back(typeOfMuon);
     _daughters_muonID.push_back(muIDflag);
-    _daughters_tauID.push_back(tauIDflag);
+    _daughters_tauID.push_back(tauIDflag); 
     _daughters_againstElectronMVA5category.push_back(againstElectronMVA5category);
     _daughters_againstElectronMVA5raw.push_back(againstElectronMVA5raw);
     _daughters_byPileupWeightedIsolationRaw3Hits.push_back(byPileupWeightedIsolationRaw3Hits);
@@ -2636,7 +2649,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
     _daughters_neutral_py.push_back(neutralP4.Y());
     _daughters_neutral_pz.push_back(neutralP4.Z());
     _daughters_neutral_e.push_back(neutralP4.T());
-
+  
     //TRIGGER MATCHING
     Long64_t LFtriggerbit=0,L3triggerbit=0,filterFired=0;
     Long64_t trgMatched = 0;
@@ -2681,7 +2694,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
           else if (type==ParticleType::MUON) IDsearch = 13;
           else if(type==ParticleType::TAU) IDsearch = 15;
           int legPosition = trgmap.GetLegFromID(IDsearch);
-
+	
           if (legPosition == 1)
           {
             for(int ifilt=0;ifilt<trgmap.GetNfiltersleg1();ifilt++)
@@ -2721,7 +2734,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
           else if (type==ParticleType::MUON) IDsearch = 13;
           else if(type==ParticleType::TAU)   IDsearch = 15;
           int legPosition = trgmap.GetLegFromID(IDsearch);
-
+	
           // debug
           // cout << "***** searching trigger : " << myTriggerHelper -> printTriggerName(triggerbit) << " " << trgmap.GetHLTPath() << endl;
           // cout << "all this object labels: ID " << IDsearch << " --> leg position : " << legPosition << endl;
@@ -2761,13 +2774,14 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
 
       } // if dR < 0.25
     } // loop on all trigger candidates
+  
     _daughters_isGoodTriggerType.push_back(triggertypeIsGood);
     _daughters_FilterFired.push_back(filterFired);
     _daughters_L3FilterFired.push_back(LFtriggerbit);
     _daughters_L3FilterFiredLast.push_back(L3triggerbit);    
     _daughters_trgMatched.push_back(trgMatched);    
     _daughters_HLTpt.push_back(hltpt);
-
+  
     vector<int> vTrgMatchedIdx;
     for (int idxHLT = 0; idxHLT < myTriggerHelper->GetNTriggers(); ++idxHLT)
     {
