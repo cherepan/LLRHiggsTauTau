@@ -410,10 +410,12 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	iiPionP4.push_back((*itr)->p4().px());
 	iiPionP4.push_back((*itr)->p4().py());
 	iiPionP4.push_back((*itr)->p4().pz());
+
 	iPionCharge.push_back((*itr)->charge());
 	iPionP4.push_back(iiPionP4);
 	totalPx+=(*itr)->p4().px();
       }
+
     }
 
     //--- PF ISO

@@ -2553,7 +2553,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
        ntaus++;
     }
     _PFTauSVPos.push_back(SVPos);
-    _PFTauSVPos.push_back(SVCov);
+    _PFTauSVCov.push_back(SVCov);
     _PFTauSVChi2NDofMatchingQuality.push_back(SVChi2NDof);
     _PFTauPionsP4.push_back(PionsP4);
     _PFTauPionsCharge.push_back(PionsCharge);
