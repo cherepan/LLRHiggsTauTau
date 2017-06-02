@@ -31,8 +31,10 @@
 #include <LLRHiggsTauTau/NtupleProducer/interface/CutSet.h>
 #include <LLRHiggsTauTau/NtupleProducer/interface/LeptonIsoHelper.h>
 //#include <ZZAnalysis/AnalysisStep/interface/SIPCalculator.h>
-
-
+#include "LLRHiggsTauTau/NtupleProducer/interface/Particle.h"
+#include "LLRHiggsTauTau/NtupleProducer/interface/TrackParticle.h"
+#include "LLRHiggsTauTau/NtupleProducer/interface/ParticleBuilder.h"
+#include "LLRHiggsTauTau/NtupleProducer/interface/LorentzVectorParticle.h"
 #include <vector>
 #include <string>
 
@@ -109,6 +111,14 @@ MuFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   iEvent.getByToken(theVtxTag,vertexs);
   //iEvent.getByLabel("offlineSlimmedPrimaryVertices",vertexs);
 
+
+  int MuFillerMuon_trackCharge;
+  int MuFillerMuon_pdgid;
+  float MuFillerMuon_B;
+  float MuFillerMuon_M;
+  std::vector<double>  MuFillerMuon_par;
+  std::vector<double>  MuFillerMuon_cov;
+
   // Output collection
   auto_ptr<pat::MuonCollection> result( new pat::MuonCollection() );
   for (unsigned int i = 0; i< muonHandle->size(); ++i){
@@ -142,7 +152,32 @@ MuFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     }
 
     float rel_error_trackpt = l.muonBestTrack()->ptError()/l.muonBestTrack()->pt();    
-
+    //    const reco::Track *MuonTrack  = 	bestTrack () 
+    if (l.muonBestTrack().isNonnull()) {
+      GlobalPoint pvpoint(l.muonBestTrack()->vx(), l.muonBestTrack()->vy(), l.muonBestTrack()->vz());
+      edm::ESHandle<TransientTrackBuilder> transTrackBuilder;
+      iSetup.get<TransientTrackRecord>().get("TransientTrackBuilder",transTrackBuilder);
+      
+      reco::TransientTrack transTrk = transTrackBuilder->build(l.muonBestTrack());
+      TrackParticle trackparticle = ParticleBuilder::CreateTrackParticle(transTrk, transTrackBuilder, pvpoint, true, true);
+      
+      MuFillerMuon_trackCharge=trackparticle.Charge();
+      MuFillerMuon_pdgid=trackparticle.PDGID();
+      MuFillerMuon_B=trackparticle.BField();
+      MuFillerMuon_M=trackparticle.Mass();
+      for (int i = 0; i < trackparticle.NParameters(); i++) {
+	MuFillerMuon_par.push_back(trackparticle.Parameter(i));
+	for (int j = i; j < trackparticle.NParameters(); j++) {
+	  MuFillerMuon_cov.push_back(trackparticle.Covariance(i, j));
+	}
+      }
+    } else {
+      MuFillerMuon_trackCharge=-999;
+      MuFillerMuon_pdgid=-999;
+      MuFillerMuon_B=-999;
+      MuFillerMuon_M=-999;
+    }
+    
     /*
     //--- Trigger matching
     bool HLTMatch = ((!l.triggerObjectMatchesByFilter("hltSingleMu13L3Filtered17").empty())||
@@ -155,6 +190,16 @@ MuFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     //FIXME*/
 
     //--- Embed user variables
+
+
+    l.addUserInt( "Muon_trackCharge", MuFillerMuon_trackCharge);
+    l.addUserInt( "Muon_pdgid",  MuFillerMuon_pdgid);
+    l.addUserFloat( "Muon_B",  MuFillerMuon_B);
+    l.addUserFloat( "Muon_M", MuFillerMuon_M );
+    l.addUserData<std::vector<double  > >( "Muon_par",  MuFillerMuon_par);
+    l.addUserData<std::vector<double  > >( "Muon_cov",  MuFillerMuon_cov);
+
+
     l.addUserFloat("PFChargedHadIso",PFChargedHadIso);
     l.addUserFloat("PFNeutralHadIso",PFNeutralHadIso);
     l.addUserFloat("PFPhotonIso",PFPhotonIso);

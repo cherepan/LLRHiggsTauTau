@@ -41,6 +41,14 @@
 #include "TMatrixDSym.h"
 #include "TVectorD.h"
 #include "TVector3.h"
+#include "RecoVertex/KinematicFit/interface/KinematicParticleVertexFitter.h"
+#include "RecoVertex/KinematicFitPrimitives/interface/KinematicParticleFactoryFromTransientTrack.h"
+#include "LLRHiggsTauTau/NtupleProducer/interface/Particle.h"
+#include "LLRHiggsTauTau/NtupleProducer/interface/TrackParticle.h"
+#include "LLRHiggsTauTau/NtupleProducer/interface/ParticleBuilder.h"
+#include "LLRHiggsTauTau/NtupleProducer/interface/LorentzVectorParticle.h"
+#include "LLRHiggsTauTau/NtupleProducer/interface/PDGInfo.h"
+
 
 using namespace edm;
 using namespace std;
@@ -209,8 +217,20 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     std::vector<double > SVPos;     
     std::vector<double > SVCov;     
     std::vector<std::vector<double> > iPionP4;
+    std::vector<std::vector<double> > iRefitPionP4;
     std::vector<double> iPionCharge;
+    std::vector<double> iRefitPionCharge;
+
     std::vector<double> SVChi2NDofMatchingQual;
+
+
+    int a1_charge=-999;
+    int a1_pdgid=-999;
+    float a1_B=-999.;
+    float a1_M=-999.; 
+    std::vector<double>  PFTau_a1_lvp;
+    std::vector<double>  PFTau_a1_cov;
+
 
     // Nominal TES Correction
     double Shift = 1.+NominalTESCorrection/100.;
@@ -416,7 +436,70 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	totalPx+=(*itr)->p4().px();
       }
 
+      //      std::cout<<" refiter.size     "<< secondaryVertex.refittedTracks().size()<<std::endl;
+      ////////////////////////////////////////////////////////////////////////////////
+       if(fitOk &&  transTracks.size() >2) {
+       	LorentzVectorParticle a1;
+	GlobalPoint sv(secondaryVertex.position().x(), secondaryVertex.position().y(), secondaryVertex.position().z());
+	KinematicParticleFactoryFromTransientTrack kinFactory;
+       	float piMassSigma(sqrt(pow(10., -12.))), piChi(0.0), piNdf(0.0);
+       	std::vector<RefCountedKinematicParticle> pions;
+       	for (unsigned int i = 0; i <transTracks.size(); i++)
+       	  pions.push_back(kinFactory.particle(transTracks.at(i), PDGInfo::pi_mass(), piChi, piNdf, sv, piMassSigma));
+      
+       	KinematicParticleVertexFitter kpvFitter;
+       	RefCountedKinematicTree jpTree = kpvFitter.fit(pions);
+	if(jpTree->isValid()){
+	  jpTree->movePointerToTheTop();
+	  const KinematicParameters parameters = jpTree->currentParticle()->currentState().kinematicParameters();
+	  AlgebraicSymMatrix77 cov = jpTree->currentParticle()->currentState().kinematicParametersError().matrix();
+	  // get pions
+	  double c(0);
+	  std::vector<reco::Track> Tracks;
+	  std::vector<LorentzVectorParticle> ReFitPions;
+	  for (unsigned int i = 0; i < transTracks.size(); i++) {
+	    std::vector<double> iPionP4;
+	    std::vector<double> iPionCharge;
+	    c += transTracks.at(i).charge();
+	    ReFitPions.push_back(ParticleBuilder::CreateLorentzVectorParticle(transTracks.at(i), transTrackBuilder, secondaryVertex, true, true));
+	    iPionP4.push_back(ReFitPions.at(i).LV().E());
+	    iPionP4.push_back(ReFitPions.at(i).LV().Px());
+	    iPionP4.push_back(ReFitPions.at(i).LV().Py());
+	    iPionP4.push_back(ReFitPions.at(i).LV().Pz());
+	    
+	    iRefitPionP4.push_back(iPionP4);
+	    iRefitPionCharge.push_back(transTracks.at(i).charge());
+	  }
+	  
+	  // now covert a1 into LorentzVectorParticle
+	  TMatrixT<double> a1_par(LorentzVectorParticle::NLorentzandVertexPar, 1);
+	  TMatrixTSym<double> a1_cov(LorentzVectorParticle::NLorentzandVertexPar);
+	  for (int i = 0; i < LorentzVectorParticle::NLorentzandVertexPar; i++) {
+	    a1_par(i, 0) = parameters(i);
+	    for (int j = 0; j < LorentzVectorParticle::NLorentzandVertexPar; j++) {
+	      a1_cov(i, j) = cov(i, j);
+	    }
+	  }
+	  a1 = LorentzVectorParticle(a1_par, a1_cov, abs(PDGInfo::a_1_plus) * c, c, transTrackBuilder->field()->inInverseGeV(sv).z());
+	  a1_charge=a1.Charge();
+	  a1_pdgid=a1.PDGID();
+	  a1_B=a1.BField();
+	  a1_M=a1.Mass();
+	  for (int i = 0; i < a1.NParameters(); i++) {
+	    PFTau_a1_lvp.push_back(a1.Parameter(i));
+	    for (int j = i; j < a1.NParameters(); j++) {
+	      PFTau_a1_cov.push_back(a1.Covariance(i, j));
+	    }
+	  }
+	}
+       }
+      
     }
+    
+
+    
+    
+  
 
     //--- PF ISO
     float PFChargedHadIso   = l.chargedHadronIso();
@@ -569,6 +652,17 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     l.addUserData<std::vector<double > >( "SVChi2NDofMatchingQual",  SVChi2NDofMatchingQual);
     l.addUserData<std::vector<std::vector<double > > >( "iPionP4", iPionP4 );
     l.addUserData<std::vector<double > >( "iPionCharge",  iPionCharge);
+    l.addUserData<std::vector<std::vector<double > > >( "iRefitPionP4", iRefitPionP4 );
+    l.addUserData<std::vector<double > >( "iRefitPionCharge",  iRefitPionCharge);
+
+  
+
+    l.addUserInt("a1_charge",  a1_charge);
+    l.addUserInt("a1_pdgid",  a1_pdgid);
+    l.addUserFloat("a1_B",  a1_B);
+    l.addUserFloat("a1_M",  a1_M);
+    l.addUserData<std::vector<double > >( "PFTau_a1_lvp", PFTau_a1_lvp );
+    l.addUserData<std::vector<double > >( "PFTau_a1_cov", PFTau_a1_cov );
     l.addUserFloat("genPx",px);
     l.addUserFloat("genPy",py);
     l.addUserFloat("genPz",pz);
@@ -582,7 +676,7 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     l.addUserFloat("genHadPy",py);
     l.addUserFloat("genHadPz",pz);
     l.addUserFloat("genHadE",E);
-
+  
     //     MCHistoryTools mch(iEvent);
     //     if (mch.isMC()) {
     //       int MCParentCode = 0;

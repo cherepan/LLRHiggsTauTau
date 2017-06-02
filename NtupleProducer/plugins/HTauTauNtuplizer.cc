@@ -300,6 +300,22 @@ class HTauTauNtuplizer : public edm::EDAnalyzer {
                                                    // stored bitwise for HLT paths as done for daughters_trgMatch
 
   
+  std::vector<int> Muon_charge;
+  std::vector<int> Muon_trackCharge;
+  std::vector<int> Muon_pdgid;
+  std::vector<double> Muon_B;
+  std::vector<double> Muon_M;
+  std::vector<std::vector<double> > Muon_par;
+  std::vector<std::vector<double> > Muon_cov;
+
+  std::vector<int> a1_charge;
+  std::vector<int> a1_pdgid;
+  std::vector<double> a1_B;
+  std::vector<double> a1_M;
+  std::vector<std::vector<double> > a1_par;
+  std::vector<std::vector<double> > a1_cov;
+
+
   // reco leptons
   //std::vector<TLorentzVector> _daughters;
   std::vector<string> _trigger_name;
@@ -576,10 +592,18 @@ class HTauTauNtuplizer : public edm::EDAnalyzer {
   std::vector<std::vector<double > > _PFTauSVPos;
   std::vector<std::vector<double > > _PFTauSVCov;
   std::vector<std::vector<std::vector<double > > > _PFTauPionsP4;
+  std::vector<std::vector<std::vector<double > > > _PFTauRefitPionsP4;
   std::vector<std::vector<double > > _PFTauPionsCharge;
   std::vector<std::vector<double > > _PFTauSVChi2NDofMatchingQuality;
 
- 
+
+  std::vector<std::vector<double> > PFTau_a1_lvp;
+  std::vector<std::vector<double> > PFTau_a1_cov;
+  std::vector<int>  PFTau_a1_charge;
+  std::vector<int>  PFTau_a1_pdgid;
+  std::vector<double>  PFTau_a1_B;
+  std::vector<double>  PFTau_a1_M;
+
   std::vector<Int_t> _daughters_jetNDauChargedMVASel;
   std::vector<Float_t> _daughters_miniRelIsoCharged;
   std::vector<Float_t> _daughters_miniRelIsoNeutral;
@@ -870,6 +894,7 @@ void HTauTauNtuplizer::Initialize(){
   _PFTauSVPos.clear();
   _PFTauSVCov.clear();
   _PFTauPionsP4.clear();
+  _PFTauRefitPionsP4.clear();
   _PFTauPionsCharge.clear();
   _PFTauSVChi2NDofMatchingQuality.clear();
 
@@ -1145,6 +1170,23 @@ void HTauTauNtuplizer::Initialize(){
 
   // not a tree var, but has to be filled once per daughter - reset here
   vTrgMatchedToDau_idx.clear();
+
+
+  PFTau_a1_lvp.clear();
+  PFTau_a1_cov.clear();
+  PFTau_a1_charge.clear();
+  PFTau_a1_pdgid.clear();
+  PFTau_a1_B.clear();
+  PFTau_a1_M.clear();
+
+  Muon_trackCharge.clear();
+  Muon_pdgid.clear();
+  Muon_B.clear();
+  Muon_M.clear();
+  Muon_par.clear();
+  Muon_cov.clear();
+
+
 }
 
 void HTauTauNtuplizer::beginJob(){
@@ -1424,9 +1466,17 @@ void HTauTauNtuplizer::beginJob(){
   myTree->Branch("daughters_isL1IsoTau28Matched", &_daughters_isL1IsoTau28Matched);
 
 
+  myTree->Branch("Muon_trackCharge", &Muon_trackCharge);
+  myTree->Branch("Muon_pdgid", &Muon_pdgid);
+  myTree->Branch("Muon_B", &Muon_B);
+  myTree->Branch("Muon_M", &Muon_M);
+  myTree->Branch("Muon_par", &Muon_par);
+  myTree->Branch("Muon_cov", &Muon_cov);
+
   myTree->Branch("PFTauSVPos", &_PFTauSVPos);
   myTree->Branch("PFTauSVCov", &_PFTauSVCov);
   myTree->Branch("PFTauPionsP4", &_PFTauPionsP4);
+  myTree->Branch("PFTauRefitPionsP4", &_PFTauRefitPionsP4);
   myTree->Branch("PFTauPionsCharge", &_PFTauPionsCharge);
   myTree->Branch("PFTauSVChi2NDofMatchingQuality", &_PFTauSVChi2NDofMatchingQuality);
 
@@ -1449,6 +1499,13 @@ void HTauTauNtuplizer::beginJob(){
     myTree->Branch("daughters_pcaGenPV_y",&_daughters_pcaGenPV_y);
     myTree->Branch("daughters_pcaGenPV_z",&_daughters_pcaGenPV_z);
   }
+
+  myTree->Branch("PFTau_a1_lvp", &PFTau_a1_lvp);
+  myTree->Branch("PFTau_a1_cov", &PFTau_a1_cov);
+  myTree->Branch("PFTau_a1_charge", &PFTau_a1_charge);
+  myTree->Branch("PFTau_a1_pdgid", &PFTau_a1_pdgid);
+  myTree->Branch("PFTau_a1_B", &PFTau_a1_B);
+  myTree->Branch("PFTau_a1_M", &PFTau_a1_M);
 
   myTree->Branch("JetsNumber",&_numberOfJets,"JetsNumber/I");
   myTree->Branch("jets_px",&_jets_px);
@@ -2391,12 +2448,31 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
     std::vector<double> SVChi2NDof;
     std::vector<std::vector<double>  >PionsP4;
     std::vector<double> PionsCharge;
-	
+    std::vector<std::vector<double>  >RefitPionsP4;
+    std::vector<double> RefitPionsCharge;
+    float ia1_M=-999.;
+    float ia1_B=-999.;
+    int ia1_pdgid=-999;
+    int ia1_Charge=-999;
+    std::vector<double> ia1_cov;
+    std::vector<double> ia1_par;
+
+  
+
+
     float dxy_innerTrack = -1., dz_innerTrack = -1., sip = -1., error_trackpt=-1.;
     int jetNDauChargedMVASel = -1;
     float miniRelIsoCharged = -1., miniRelIsoNeutral = -1.;
     float jetPtRel = -1., jetPtRatio = -1., jetBTagCSV=-1.;
     float lepMVA_mvaId = -1.;
+    float iMuon_M=-999.;
+    float iMuon_B=-999.;
+    int iMuon_pdgid=-999;
+    int iMuon_trackCharge=-999;
+    std::vector<double> iMuon_cov;
+    std::vector<double> iMuon_par;
+
+ 
 
     //
     GlobalPoint aPVPoint(_pv_x, _pv_y, _pv_z);
@@ -2434,6 +2510,23 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
 
       lepMVA_mvaId  = userdatahelpers::getUserFloat(cand,"segmentCompatibility");
 
+      const pat::Muon *patmuon  = dynamic_cast<const pat::Muon*>(cand);
+
+
+      iMuon_M=userdatahelpers::getUserFloat(cand,"Muon_M");
+      iMuon_B=userdatahelpers::getUserFloat(cand,"Muon_B");
+      iMuon_pdgid=userdatahelpers::getUserInt(cand,"Muon_pdgid");
+      iMuon_trackCharge=userdatahelpers::getUserInt(cand,"Muon_trackCharge");
+
+
+      if(patmuon->hasUserData("Muon_cov")){
+	for(unsigned int i =0; i < patmuon->userData<std::vector<double>  >("Muon_cov")->size(); i++) {iMuon_cov.push_back(patmuon->userData<std::vector<double>  >("Muon_cov")->at(i)); }
+	      }
+	if(patmuon->hasUserData("Muon_par")){
+	  for(unsigned int i =0; i < patmuon->userData<std::vector<double> >("Muon_par")->size(); i++){iMuon_par.push_back(patmuon->userData<std::vector<double> >("Muon_par")->at(i));  }
+	}
+      
+	      
     }else if(type==ParticleType::ELECTRON){
       discr=userdatahelpers::getUserFloat(cand,"BDT");
       ieta=userdatahelpers::getUserFloat(cand,"sigmaIetaIeta");
@@ -2508,6 +2601,12 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
       leadChargedParticlePt = userdatahelpers::getUserFloat (cand, "leadChargedParticlePt");
       trackRefPt = userdatahelpers::getUserFloat (cand, "trackRefPt");
 
+      ia1_M=userdatahelpers::getUserFloat(cand,"a1_M");
+      ia1_B=userdatahelpers::getUserFloat(cand,"a1_B");
+      ia1_pdgid=userdatahelpers::getUserInt(cand,"a1_pdgid");
+      ia1_Charge=userdatahelpers::getUserInt(cand,"a1_charge");
+
+
     
       const pat::Tau *taon  = dynamic_cast<const pat::Tau*>(cand);
       if(taon){
@@ -2540,24 +2639,49 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
 	 
 	 if(taon->hasUserData("iPionP4")){
 	   for(unsigned int i =0; i < taon->userData<std::vector<std::vector<double> > >("iPionP4")->size(); i++){PionsP4.push_back(taon->userData<std::vector<std::vector<double> > >("iPionP4")->at(i)); }
-	   
 	   //	   for(unsigned int i =0; i< PionsP4.size(); i++){ cout<<"pions energy  "<< PionsP4.at(i).at(0)<< endl;    }
 	 }//else {_PFTauPionsP4.push_back(std::vector<std::vector<double> >()); }
 	 
 	 if(taon->hasUserData("iPionCharge")){
 	   for(unsigned int i =0; i < taon->userData<std::vector<double> >("iPionCharge")->size(); i++){PionsCharge.push_back(taon->userData<std::vector<double> >("iPionCharge")->at(i));  }
-	  
 	 }//else {_PFTauPionsCharge.push_back(std::vector<double>());}
+
+	 if(taon->hasUserData("iRefitPionP4")){
+	   for(unsigned int i =0; i < taon->userData<std::vector<std::vector<double> > >("iRefitPionP4")->size(); i++){RefitPionsP4.push_back(taon->userData<std::vector<std::vector<double> > >("iRefitPionP4")->at(i)); }
+	   //	   for(unsigned int i =0; i< PionsP4.size(); i++){ cout<<"pions energy  "<< PionsP4.at(i).at(0)<< endl;    }
+	 }//else {_PFTauPionsP4.push_back(std::vector<std::vector<double> >()); }
+	 
+	 if(taon->hasUserData("iRefitPionCharge")){
+	   for(unsigned int i =0; i < taon->userData<std::vector<double> >("iRefitPionCharge")->size(); i++){RefitPionsCharge.push_back(taon->userData<std::vector<double> >("iRefitPionCharge")->at(i));  }
+	 }//else {_PFTauPionsCharge.push_back(std::vector<double>());}
+
+	 if(taon->hasUserData("PFTau_a1_cov")){
+	   for(unsigned int i =0; i < taon->userData<std::vector<double>  >("PFTau_a1_cov")->size(); i++) {ia1_cov.push_back(taon->userData<std::vector<double>  >("PFTau_a1_cov")->at(i)); }
+		 }
+	   if(taon->hasUserData("PFTau_a1_lvp")){
+	     for(unsigned int i =0; i < taon->userData<std::vector<double> >("PFTau_a1_lvp")->size(); i++){ia1_par.push_back(taon->userData<std::vector<double> >("PFTau_a1_lvp")->at(i));  }
+	   }
+ 
+
+
+
 
       }
        ntaus++;
-    }
+      }
     _PFTauSVPos.push_back(SVPos);
     _PFTauSVCov.push_back(SVCov);
     _PFTauSVChi2NDofMatchingQuality.push_back(SVChi2NDof);
     _PFTauPionsP4.push_back(PionsP4);
+    _PFTauRefitPionsP4.push_back(RefitPionsP4);
     _PFTauPionsCharge.push_back(PionsCharge);
      
+    PFTau_a1_M.push_back(ia1_M);
+    PFTau_a1_B.push_back(ia1_B);
+    PFTau_a1_pdgid.push_back(ia1_pdgid);
+    PFTau_a1_charge.push_back(ia1_Charge);
+    PFTau_a1_cov.push_back(ia1_cov);
+    PFTau_a1_lvp.push_back(ia1_par);
 
     _discriminator.push_back(discr);
     _daughters_typeOfMuon.push_back(typeOfMuon);
@@ -2614,7 +2738,14 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
     _daughters_numParticlesIsoCone.push_back(numParticlesIsoCone);
     _daughters_leadChargedParticlePt.push_back(leadChargedParticlePt);
     _daughters_trackRefPt.push_back(trackRefPt);
-  
+    Muon_M.push_back(iMuon_M);
+    Muon_B.push_back(iMuon_B);
+    Muon_pdgid.push_back(iMuon_pdgid);
+    Muon_trackCharge.push_back(iMuon_trackCharge);
+    Muon_cov.push_back(iMuon_cov);
+    Muon_par.push_back(iMuon_par);
+
+
     _dxy_innerTrack.push_back(dxy_innerTrack);
     _dz_innerTrack.push_back(dz_innerTrack);
     _daughters_rel_error_trackpt.push_back(error_trackpt);
