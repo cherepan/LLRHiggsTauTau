@@ -1294,7 +1294,7 @@ void HTauTauNtuplizer::beginJob(){
     myTree->Branch("genpart_pz", &_genpart_pz);
     myTree->Branch("genpart_e", &_genpart_e);
     myTree->Branch("DataMC_Type_idx" ,&_DataMC_Type);
-    myTree->Branch("Event_isRealData", &Event_isRealData);
+
     if(doCPVariables){
       myTree->Branch("genpart_pca_x",&_genpart_pca_x);
       myTree->Branch("genpart_pca_y",&_genpart_pca_y);
@@ -1373,7 +1373,7 @@ void HTauTauNtuplizer::beginJob(){
     myTree->Branch("MC_status", &MC_status);
   }
 
-
+  myTree->Branch("Event_isRealData", &Event_isRealData);
   myTree->Branch("SVfitMass",&_SVmass);
   myTree->Branch("SVfitTransverseMass",&_SVmassTransverse);
   myTree->Branch("SVfit_pt", &_SVpt);
@@ -1616,7 +1616,7 @@ void HTauTauNtuplizer::analyze(const edm::Event& event, const edm::EventSetup& e
     _DataMC_Type = DataMCType::Data;
   }
   Event_isRealData = event.isRealData();
-  if(event.isRealData()!=0 or Event_isRealData!=0)  std::cout<< "event.isRealData(   "   <<event.isRealData() << " event 2   "<<Event_isRealData << " datamctype    " <<  _DataMC_Type<<std::endl;
+
   _npv = vertexs->size();
    if (theisMC) {
     Handle<std::vector< PileupSummaryInfo > >  PupInfo;

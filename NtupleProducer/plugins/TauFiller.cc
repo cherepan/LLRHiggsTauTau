@@ -466,9 +466,9 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	    iPionP4.push_back(ReFitPions.at(i).LV().Px());
 	    iPionP4.push_back(ReFitPions.at(i).LV().Py());
 	    iPionP4.push_back(ReFitPions.at(i).LV().Pz());
-	    
 	    iRefitPionP4.push_back(iPionP4);
 	    iRefitPionCharge.push_back(transTracks.at(i).charge());
+	    //	    ReFitPions.at(i).LVCov().Print();
 	  }
 	  
 	  // now covert a1 into LorentzVectorParticle

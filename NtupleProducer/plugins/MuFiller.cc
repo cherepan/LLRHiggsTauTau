@@ -26,7 +26,7 @@
 #include "RecoVertex/AdaptiveVertexFit/interface/AdaptiveVertexFitter.h"
 #include "TrackingTools/GeomPropagators/interface/AnalyticalTrajectoryExtrapolatorToLine.h"
 #include "TrackingTools/GeomPropagators/interface/AnalyticalImpactPointExtrapolator.h"
-
+#include "DataFormats/Math/interface/Point3D.h"
 #include <LLRHiggsTauTau/NtupleProducer/interface/DaughterDataHelpers.h>
 #include <LLRHiggsTauTau/NtupleProducer/interface/CutSet.h>
 #include <LLRHiggsTauTau/NtupleProducer/interface/LeptonIsoHelper.h>
@@ -142,6 +142,7 @@ MuFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     float dxy_innerTrack = 999.;
     float dz_innerTrack  = 999.;
     const Vertex* vertex = 0;
+    //reco::Vertex Muonvertex;
 
     if (vertexs->size()>0) {
       vertex = &(vertexs->front());
@@ -150,17 +151,17 @@ MuFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       dxy_innerTrack = (l.innerTrack()->dxy(vertex->position()));
       dz_innerTrack  = (l.innerTrack()->dz(vertex->position()));
     }
-
+    reco::Vertex fakeVertex = vertexs->front();
     float rel_error_trackpt = l.muonBestTrack()->ptError()/l.muonBestTrack()->pt();    
     //    const reco::Track *MuonTrack  = 	bestTrack () 
     if (l.muonBestTrack().isNonnull()) {
       GlobalPoint pvpoint(l.muonBestTrack()->vx(), l.muonBestTrack()->vy(), l.muonBestTrack()->vz());
       edm::ESHandle<TransientTrackBuilder> transTrackBuilder;
       iSetup.get<TransientTrackRecord>().get("TransientTrackBuilder",transTrackBuilder);
-      
       reco::TransientTrack transTrk = transTrackBuilder->build(l.muonBestTrack());
       TrackParticle trackparticle = ParticleBuilder::CreateTrackParticle(transTrk, transTrackBuilder, pvpoint, true, true);
-      
+      // LorentzVectorParticle MuonLVP  = ParticleBuilder::CreateLorentzVectorParticle(transTrk, transTrackBuilder, fakeVertex, true, true);
+      // MuonLVP.LVCov().Print();
       MuFillerMuon_trackCharge=trackparticle.Charge();
       MuFillerMuon_pdgid=trackparticle.PDGID();
       MuFillerMuon_B=trackparticle.BField();

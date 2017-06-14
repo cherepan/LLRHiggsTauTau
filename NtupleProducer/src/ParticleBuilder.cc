@@ -35,6 +35,7 @@ LorentzVectorParticle ParticleBuilder::CreateLorentzVectorParticle(reco::Transie
 
   TMatrixT<double>    LVPar=TrackHelixVertexFitter::ComputeLorentzVectorPar(par);
   TMatrixTSym<double> LVCov=ErrorMatrixPropagator::PropagateError(&TrackHelixVertexFitter::ComputeLorentzVectorPar,par,parcov);
+
   return LorentzVectorParticle(LVPar,LVCov,tp.PDGID(),tp.Charge(),tp.BField());
 }
 
