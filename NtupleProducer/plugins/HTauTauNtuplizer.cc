@@ -1197,6 +1197,7 @@ void HTauTauNtuplizer::beginJob(){
   hTauIDs = fs->make<TH1F>("TauIDs","TauIDs",ntauIds,0,ntauIds);
 
   //Branches
+  myTree->Branch("DataMC_Type_idx" ,&_DataMC_Type);
   myTree->Branch("EventNumber",&_indexevents,"EventNumber/l");
   myTree->Branch("RunNumber",&_runNumber,"RunNumber/I");
   myTree->Branch("lumi",&_lumi,"lumi/I");
@@ -1293,7 +1294,7 @@ void HTauTauNtuplizer::beginJob(){
     myTree->Branch("genpart_py", &_genpart_py);
     myTree->Branch("genpart_pz", &_genpart_pz);
     myTree->Branch("genpart_e", &_genpart_e);
-    myTree->Branch("DataMC_Type_idx" ,&_DataMC_Type);
+
 
     if(doCPVariables){
       myTree->Branch("genpart_pca_x",&_genpart_pca_x);
