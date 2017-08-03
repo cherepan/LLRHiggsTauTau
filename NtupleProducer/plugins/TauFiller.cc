@@ -222,6 +222,12 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     std::vector<double> iRefitPionCharge;
 
     std::vector<double> SVChi2NDofMatchingQual;
+    int TauTrackFiller_trackCharge=-999;
+    int TauTrackFiller_pdgid=-999;
+    float TauTrackFiller_B=-999;
+    float TauTrackFiller_M=-999;
+    std::vector<double>  TauTrackFiller_par;
+    std::vector<double>  TauTrackFiller_cov;
 
 
     int a1_charge=-999;
@@ -330,7 +336,85 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
     edm::ESHandle<TransientTrackBuilder> transTrackBuilder;
     iSetup.get<TransientTrackRecord>().get("TransientTrackBuilder", transTrackBuilder);
-    double totalPx(0);
+
+  
+
+
+
+    if (l.decayMode() == 0  or l.decayMode() == 1 or l.decayMode() == 2 ) 
+         {
+	   reco::CandidatePtrVector 	sigCands = l.signalChargedHadrCands();
+	   //Get tracks associated wiht pfPV
+	   reco::TrackCollection pvTracks;
+	   TLorentzVector aTrack;
+	   for(size_t i=0; i<cands->size(); ++i){
+	     if((*cands)[i].charge()==0 || (*cands)[i].vertexRef().isNull()) continue;
+	     if(!(*cands)[i].bestTrack()) continue;
+	     
+	     unsigned int key = (*cands)[i].vertexRef().key();
+	     int quality = (*cands)[i].pvAssociationQuality();
+	     
+	     if(key!=0 ||
+		(quality!=pat::PackedCandidate::UsedInFitTight
+		 && quality!=pat::PackedCandidate::UsedInFitLoose)) continue;
+	     
+	     pvTracks.push_back(*((*cands)[i].bestTrack()));
+	   }
+	   
+	   //---------- find PV track belonging to sigCands
+	   double deR(999.); 
+	   reco::Track RefToTauTrack;
+	   for(auto iter: pvTracks) {
+	     //  if(std::find(tracksToBeRemoved.begin(), tracksToBeRemoved.end(), iter.pt())!=tracksToBeRemoved.end()) continue;
+	     if( sqrt(pow(iter.eta() - l.leadChargedHadrCand()->p4().eta(),2) + pow(iter.phi() - l.leadChargedHadrCand()->p4().phi(),2))  < deR){
+	       deR = sqrt(pow(iter.eta() - l.leadChargedHadrCand()->p4().eta(),2) + pow(iter.phi() - l.leadChargedHadrCand()->p4().phi(),2));
+	       RefToTauTrack = iter;
+	     }
+	   }
+
+	       
+	   //const reco::Track *TauTrack  = (*itr)->bestTrack();
+	   const reco::Track *TauTrack  =  &RefToTauTrack;
+	   
+	   GlobalPoint pvpoint(TauTrack->vx(), TauTrack->vy(), TauTrack->vz());
+	   reco::TransientTrack transTrk = transTrackBuilder->build(TauTrack);
+	   TrackParticle tautrackparticle = ParticleBuilder::CreateTrackParticle(transTrk, transTrackBuilder, pvpoint, true, true);
+	   // reco::Vertex fakeVertex = vertexs->front();
+	   // LorentzVectorParticle TrackLVP  = ParticleBuilder::CreateLorentzVectorParticle(transTrk, transTrackBuilder, fakeVertex, true, true);
+	   // TrackLVP.LVCov().Print();
+	   if(deR< 0.01){
+
+	     TauTrackFiller_trackCharge=tautrackparticle.Charge();
+	     TauTrackFiller_pdgid=tautrackparticle.PDGID();
+	     TauTrackFiller_B=tautrackparticle.BField();
+	     TauTrackFiller_M=tautrackparticle.Mass();
+	     
+	     for (int i = 0; i < tautrackparticle.NParameters(); i++) {
+	       TauTrackFiller_par.push_back(tautrackparticle.Parameter(i));
+	       for (int j = i; j <tautrackparticle.NParameters(); j++) {
+		 TauTrackFiller_cov.push_back(tautrackparticle.Covariance(i, j));
+	       }
+	     }
+	   }else
+	         {
+		   TauTrackFiller_trackCharge=-999;
+		   TauTrackFiller_pdgid=-999;
+		   TauTrackFiller_B=-999;
+		   TauTrackFiller_M=-999;
+		 }
+	 }else
+               {
+		 TauTrackFiller_trackCharge=-999;
+		 TauTrackFiller_pdgid=-999;
+		 TauTrackFiller_B=-999;
+		 TauTrackFiller_M=-999;
+	       }
+  
+
+
+
+
+    
     if (l.decayMode() == 10 /* or l.decayMode() == 1*/) {
       ///////////////////////////////////////////////////////////////////////////////////////////////
       // Get tracks form PFTau daugthers
@@ -433,7 +517,7 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
 	iPionCharge.push_back((*itr)->charge());
 	iPionP4.push_back(iiPionP4);
-	totalPx+=(*itr)->p4().px();
+
       }
 
       //      std::cout<<" refiter.size     "<< secondaryVertex.refittedTracks().size()<<std::endl;
@@ -580,12 +664,14 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     l.addUserInt("numParticlesIsoCone",numParticlesIsoCone);
     l.addUserFloat("leadChargedParticlePt",leadChargedParticlePt);
     l.addUserFloat("trackRefPt",trackRefPt); 
-
+    //    std::cout<< " Tau " <<itau << std::endl;
     // fill all userfloats
     for (unsigned int iuf = 0; iuf < tauFloatDiscrims_.size(); iuf++)
     {
       string ID = tauFloatDiscrims_.at(iuf);
       l.addUserFloat (ID.c_str(), l.isTauIDAvailable(ID.c_str()) ? l.tauID (ID.c_str()) : -999.);
+
+
     }
 
     // fill all userints
@@ -597,7 +683,9 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       {
         ui = ( (l.tauID (ID.c_str()) > 0.5) ? 1 : 0);
       }
+
       l.addUserInt (ID.c_str(), ui);
+
     }
 
 
@@ -655,7 +743,7 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     l.addUserData<std::vector<std::vector<double > > >( "iRefitPionP4", iRefitPionP4 );
     l.addUserData<std::vector<double > >( "iRefitPionCharge",  iRefitPionCharge);
 
-  
+
 
     l.addUserInt("a1_charge",  a1_charge);
     l.addUserInt("a1_pdgid",  a1_pdgid);
@@ -663,6 +751,17 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     l.addUserFloat("a1_M",  a1_M);
     l.addUserData<std::vector<double > >( "PFTau_a1_lvp", PFTau_a1_lvp );
     l.addUserData<std::vector<double > >( "PFTau_a1_cov", PFTau_a1_cov );
+
+
+
+    l.addUserInt( "TauTrackFiller_trackCharge", TauTrackFiller_trackCharge);
+    l.addUserInt( "TauTrackFiller_pdgid",  TauTrackFiller_pdgid);
+    l.addUserFloat( "TauTrackFiller_B",  TauTrackFiller_B);
+    l.addUserFloat( "TauTrackFiller_M", TauTrackFiller_M );
+    l.addUserData<std::vector<double  > >( "TauTrackFiller_par",  TauTrackFiller_par);
+    l.addUserData<std::vector<double  > >( "TauTrackFiller_cov",  TauTrackFiller_cov);
+
+
     l.addUserFloat("genPx",px);
     l.addUserFloat("genPy",py);
     l.addUserFloat("genPz",pz);

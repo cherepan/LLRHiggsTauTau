@@ -308,6 +308,17 @@ class HTauTauNtuplizer : public edm::EDAnalyzer {
   std::vector<std::vector<double> > Muon_par;
   std::vector<std::vector<double> > Muon_cov;
 
+
+  std::vector<std::vector<double> > PFTau_Track_par;
+  std::vector<std::vector<double> > PFTau_Track_cov;
+  std::vector<int>  PFTau_Track_charge;
+  std::vector<int>  PFTau_Track_pdgid;
+  std::vector<double>  PFTau_Track_B;
+  std::vector<double>  PFTau_Track_M;
+
+
+
+
   std::vector<int> a1_charge;
   std::vector<int> a1_pdgid;
   std::vector<double> a1_B;
@@ -603,6 +614,10 @@ class HTauTauNtuplizer : public edm::EDAnalyzer {
   std::vector<int>  PFTau_a1_pdgid;
   std::vector<double>  PFTau_a1_B;
   std::vector<double>  PFTau_a1_M;
+
+
+
+
 
   std::vector<Int_t> _daughters_jetNDauChargedMVASel;
   std::vector<Float_t> _daughters_miniRelIsoCharged;
@@ -1186,6 +1201,14 @@ void HTauTauNtuplizer::Initialize(){
   Muon_par.clear();
   Muon_cov.clear();
 
+  PFTau_Track_par.clear();
+  PFTau_Track_cov.clear();
+  PFTau_Track_charge.clear();
+  PFTau_Track_pdgid.clear();
+  PFTau_Track_B.clear();
+  PFTau_Track_M.clear();
+
+
 
 }
 
@@ -1222,7 +1245,7 @@ void HTauTauNtuplizer::beginJob(){
   myTree->Branch("PFMETCov10",&_PFMETCov10,"PFMETCov10/F");
   myTree->Branch("PFMETCov11",&_PFMETCov11,"PFMETCov11/F");
   myTree->Branch("PFMETsignif", &_PFMETsignif, "PFMETsignif/F");
-  myTree->Branch("npv",&_npv,"npv/I");  
+  myTree->Branch("npv",&_npv,"npv/I");
   myTree->Branch("npu",&_npu,"npu/F"); 
   myTree->Branch("PUReweight",&_PUReweight,"PUReweight/F"); 
   myTree->Branch("rho",&_rho,"rho/F");  
@@ -1285,11 +1308,11 @@ void HTauTauNtuplizer::beginJob(){
     myTree->Branch("MC_weight_scale_muF2",&_MC_weight_scale_muF2,"MC_weight_scale_muF2/F");
     myTree->Branch("MC_weight_scale_muR0p5",&_MC_weight_scale_muR0p5,"MC_weight_scale_muR0p5/F");
     myTree->Branch("MC_weight_scale_muR2",&_MC_weight_scale_muR2,"MC_weight_scale_muR2/F");
-    myTree->Branch("lheHt",&_lheHt,"lheHt/F");  
+    myTree->Branch("lheHt",&_lheHt,"lheHt/F");
     myTree->Branch("lheNOutPartons", &_lheNOutPartons, "lheNOutPartons/I");
     myTree->Branch("lheNOutB", &_lheNOutB, "lheNOutB/I");
     myTree->Branch("lheNOutC", &_lheNOutC, "lheNOutC/I");
-    myTree->Branch("aMCatNLOweight",&_aMCatNLOweight,"aMCatNLOweight/F");    
+    myTree->Branch("aMCatNLOweight",&_aMCatNLOweight,"aMCatNLOweight/F");
     myTree->Branch("genpart_px", &_genpart_px);
     myTree->Branch("genpart_py", &_genpart_py);
     myTree->Branch("genpart_pz", &_genpart_pz);
@@ -1473,6 +1496,15 @@ void HTauTauNtuplizer::beginJob(){
   myTree->Branch("Muon_M", &Muon_M);
   myTree->Branch("Muon_par", &Muon_par);
   myTree->Branch("Muon_cov", &Muon_cov);
+
+
+  myTree->Branch("PFTau_Track_par", &PFTau_Track_par);
+  myTree->Branch("PFTau_Track_cov", &PFTau_Track_cov);
+  myTree->Branch("PFTau_Track_charge", &PFTau_Track_charge);
+  myTree->Branch("PFTau_Track_pdgid", &PFTau_Track_pdgid);
+  myTree->Branch("PFTau_Track_B", &PFTau_Track_B);
+  myTree->Branch("PFTau_Track_M", &PFTau_Track_M);
+
 
   myTree->Branch("PFTauSVPos", &_PFTauSVPos);
   myTree->Branch("PFTauSVCov", &_PFTauSVCov);
@@ -2301,6 +2333,8 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
   event.getByToken(theRhoMiniRelIsoTag, rhoHandle_miniRelIso);
   float rho_miniRelIso = *rhoHandle_miniRelIso;
   unsigned int ntaus(0);
+  //  unsigned int ntausc(0);
+  //  std::cout<<" ---------------------------  "<<std::endl;
   for(edm::View<reco::Candidate>::const_iterator daui = daus->begin(); daui!=daus->end();++daui){
 
     const reco::Candidate* cand = &(*daui);
@@ -2473,8 +2507,14 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
     std::vector<double> iMuon_cov;
     std::vector<double> iMuon_par;
 
- 
-
+    float iPFTau_Track_M=-999;
+    float iPFTau_Track_B=-999;
+    float iPFTau_Track_pdgid=-999;
+    float iPFTau_Track_trackCharge=-999;
+    
+    std::vector<double> iPFTau_Track_cov;
+    std::vector<double> iPFTau_Track_par;
+  
     //
     GlobalPoint aPVPoint(_pv_x, _pv_y, _pv_z);
     GlobalPoint aPVRefitPoint(_pvRefit_x, _pvRefit_y, _pvRefit_z);    
@@ -2526,8 +2566,8 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
 	if(patmuon->hasUserData("Muon_par")){
 	  for(unsigned int i =0; i < patmuon->userData<std::vector<double> >("Muon_par")->size(); i++){iMuon_par.push_back(patmuon->userData<std::vector<double> >("Muon_par")->at(i));  }
 	}
-      
-	      
+     
+    
     }else if(type==ParticleType::ELECTRON){
       discr=userdatahelpers::getUserFloat(cand,"BDT");
       ieta=userdatahelpers::getUserFloat(cand,"sigmaIetaIeta");
@@ -2570,11 +2610,14 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
       decayModeFindingNewDMs = userdatahelpers::getUserInt (cand, "decayModeFindingNewDMs");
       for (uint itau =0; itau<ntauIds; itau++){
         int id = userdatahelpers::getUserInt (cand,  tauIDStrings[itau]);
+	//	std::cout<<" iTau    " << itau <<   "  discr:   " << tauIDStrings[itau] << ":   " <<id << "    "<<decayModeFindingOldDMs<<std::endl;
         if(id>0){
           tauIDflag |= (1 << itau);
-          hTauIDs->Fill(id);
+	  hTauIDs->Fill(id);
         }
       }
+      //      if(decayModeFindingOldDMs>0.5 && (tauIDflag & (1<<3) == (1<<3)) )   ntausc++;  
+      //   std::cout<<" tauIDflag    " <<tauIDflag <<  "[passed   " <<ntausc<<std::endl;
       //againstElectronMVA5category = userdatahelpers::getUserFloat (cand, "againstElectronMVA5category");
       againstElectronMVA5raw = userdatahelpers::getUserFloat (cand, "againstElectronMVA5raw");
       byPileupWeightedIsolationRaw3Hits = userdatahelpers::getUserFloat (cand, "byPileupWeightedIsolationRaw3Hits");
@@ -2608,6 +2651,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
       ia1_Charge=userdatahelpers::getUserInt(cand,"a1_charge");
 
 
+
     
       const pat::Tau *taon  = dynamic_cast<const pat::Tau*>(cand);
       if(taon){
@@ -2622,6 +2666,22 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
 	for(reco::CandidatePtrVector::const_iterator id=chCands.begin();id!=chCands.end(); ++id) chargedP4 += (*id)->p4();
 	for(reco::CandidatePtrVector::const_iterator id=neCands.begin();id!=neCands.end(); ++id) neutralP4 += (*id)->p4();
 	
+
+	iPFTau_Track_M=userdatahelpers::getUserFloat(cand,"TauTrackFiller_M");
+	iPFTau_Track_B=userdatahelpers::getUserFloat(cand,"TauTrackFiller_B");
+	iPFTau_Track_pdgid=userdatahelpers::getUserInt(cand,"TauTrackFiller_pdgid");
+	iPFTau_Track_trackCharge=userdatahelpers::getUserInt(cand,"TauTrackFiller_trackCharge");
+
+
+	if(taon->hasUserData("TauTrackFiller_cov")){
+	  for(unsigned int i =0; i < taon->userData<std::vector<double>  >("TauTrackFiller_cov")->size(); i++) {iPFTau_Track_cov.push_back(taon->userData<std::vector<double>  >("TauTrackFiller_cov")->at(i)); }
+	}
+	if(taon->hasUserData("TauTrackFiller_par")){
+	  for(unsigned int i =0; i < taon->userData<std::vector<double> >("TauTrackFiller_par")->size(); i++){iPFTau_Track_par.push_back(taon->userData<std::vector<double> >("TauTrackFiller_par")->at(i));  }
+	}
+
+
+
 
 
 	if(taon->hasUserData("SVPos")){
@@ -2662,14 +2722,9 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
 	   if(taon->hasUserData("PFTau_a1_lvp")){
 	     for(unsigned int i =0; i < taon->userData<std::vector<double> >("PFTau_a1_lvp")->size(); i++){ia1_par.push_back(taon->userData<std::vector<double> >("PFTau_a1_lvp")->at(i));  }
 	   }
- 
-
-
-
-
-      }
+       }
        ntaus++;
-      }
+    }
     _PFTauSVPos.push_back(SVPos);
     _PFTauSVCov.push_back(SVCov);
     _PFTauSVChi2NDofMatchingQuality.push_back(SVChi2NDof);
@@ -2745,6 +2800,16 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
     Muon_trackCharge.push_back(iMuon_trackCharge);
     Muon_cov.push_back(iMuon_cov);
     Muon_par.push_back(iMuon_par);
+
+    PFTau_Track_M.push_back(iPFTau_Track_M);
+    PFTau_Track_B.push_back(iPFTau_Track_B);
+    PFTau_Track_pdgid.push_back(iPFTau_Track_pdgid);
+    PFTau_Track_charge.push_back(iPFTau_Track_trackCharge);
+    
+    PFTau_Track_cov.push_back(iPFTau_Track_cov);
+    PFTau_Track_par.push_back(iPFTau_Track_par);
+
+
 
 
     _dxy_innerTrack.push_back(dxy_innerTrack);
