@@ -215,7 +215,9 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     //---Clone the pat::Tau
     pat::Tau l(*((*tauHandle)[itau].get()));
     std::vector<double > SVPos;     
-    std::vector<double > SVCov;     
+    std::vector<double > SVCov;    
+    std::vector<double > PFTauTrackLV;    
+    float PFTauTrack_deltaR=999.;
     std::vector<std::vector<double> > iPionP4;
     std::vector<std::vector<double> > iRefitPionP4;
     std::vector<double> iPionCharge;
@@ -343,6 +345,8 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
     if (l.decayMode() == 0  or l.decayMode() == 1 or l.decayMode() == 2 ) 
          {
+
+	   reco::Vertex fakeVertex = vertexs->front();
 	   reco::CandidatePtrVector 	sigCands = l.signalChargedHadrCands();
 	   //Get tracks associated wiht pfPV
 	   reco::TrackCollection pvTracks;
@@ -371,17 +375,19 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	       RefToTauTrack = iter;
 	     }
 	   }
+	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().e());    
+	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().px());    
+	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().py());    
+	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().pz());    
 
-	       
 	   //const reco::Track *TauTrack  = (*itr)->bestTrack();
 	   const reco::Track *TauTrack  =  &RefToTauTrack;
 	   
 	   GlobalPoint pvpoint(TauTrack->vx(), TauTrack->vy(), TauTrack->vz());
 	   reco::TransientTrack transTrk = transTrackBuilder->build(TauTrack);
 	   TrackParticle tautrackparticle = ParticleBuilder::CreateTrackParticle(transTrk, transTrackBuilder, pvpoint, true, true);
-	   // reco::Vertex fakeVertex = vertexs->front();
-	   // LorentzVectorParticle TrackLVP  = ParticleBuilder::CreateLorentzVectorParticle(transTrk, transTrackBuilder, fakeVertex, true, true);
-	   // TrackLVP.LVCov().Print();
+	   PFTauTrack_deltaR=deR;
+
 	   if(deR< 0.01){
 
 	     TauTrackFiller_trackCharge=tautrackparticle.Charge();
@@ -411,7 +417,7 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	       }
   
 
-
+  
 
 
     
@@ -461,25 +467,31 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	    closestTrack = iter;
 	  }
 	}
+
 	matchingQuality+=checkqual;
 	tracksToBeRemoved.push_back(closestTrack.pt());
-	transTracks.push_back(transTrackBuilder->build(closestTrack));  //cout<<"  closestTrackiter eta  :  "<<   closestTrack.eta() << "   phi   " << closestTrack.phi() << "    pt  "<< closestTrack.pt() <<endl;
+	if(closestTrack.pt()!=0)transTracks.push_back(transTrackBuilder->build(closestTrack));  //cout<<"  closestTrackiter eta  :  "<<   closestTrack.eta() << "   phi   " << closestTrack.phi() << "    pt  "<< closestTrack.pt() <<endl;
+	// std::cout<<" tracks to be reffited  "<< std::endl;
+	// std::cout<<" px,py,pz,pt  "<< closestTrack.px() << " "<< closestTrack.py() << " "<< closestTrack.pz() << " "<< closestTrack.py() <<std::endl;
       }
         bool fitOk = false;  
-      if(transTracks.size() >= 2 ) {
-	AdaptiveVertexFitter avf;
-	avf.setWeightThreshold(0.001); 
-	try {
-	  transVtx = avf.vertex(transTracks, *beamSpot);
-	  fitOk = true; 
-	} catch (...) {
-	  fitOk = false; 
-	  std::cout<<"Vtx fit failed!"<<std::endl;
+	//std::cout<<"  ----  "<<std::endl;
+
+
+	if(transTracks.size() >= 2 ) {
+	  AdaptiveVertexFitter avf;
+	  avf.setWeightThreshold(0.001); 
+	  try {
+	    transVtx = avf.vertex(transTracks, *beamSpot);
+	    fitOk = true; 
+	  } catch (...) {
+	    fitOk = false; 
+	    std::cout<<"Vtx fit failed!"<<std::endl;
+	  }
 	}
-      }
 
       fitOk = fitOk && transVtx.isValid() && fabs(transVtx.position().x())<1 && fabs(transVtx.position().y())<1;
-    
+      //      std::cout<<" is fit OK ??  "<<   fitOk <<std::endl;
       if(fitOk) {
 	///NOTE: we take original vertex z position, as this gives the best reults on CP
 	///variables. To be understood; probable reason are missing tracks with Pt<0.95GeV
@@ -743,7 +755,7 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     l.addUserData<std::vector<std::vector<double > > >( "iRefitPionP4", iRefitPionP4 );
     l.addUserData<std::vector<double > >( "iRefitPionCharge",  iRefitPionCharge);
 
-
+  
 
     l.addUserInt("a1_charge",  a1_charge);
     l.addUserInt("a1_pdgid",  a1_pdgid);
@@ -761,7 +773,10 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     l.addUserData<std::vector<double  > >( "TauTrackFiller_par",  TauTrackFiller_par);
     l.addUserData<std::vector<double  > >( "TauTrackFiller_cov",  TauTrackFiller_cov);
 
+    l.addUserData<std::vector<double  > >( "PFTauTrackLV", PFTauTrackLV );
+    l.addUserFloat( "PFTauTrack_deltaR", PFTauTrack_deltaR );
 
+ 
     l.addUserFloat("genPx",px);
     l.addUserFloat("genPy",py);
     l.addUserFloat("genPz",pz);

@@ -605,6 +605,8 @@ class HTauTauNtuplizer : public edm::EDAnalyzer {
   std::vector<std::vector<std::vector<double > > > _PFTauPionsP4;
   std::vector<std::vector<std::vector<double > > > _PFTauRefitPionsP4;
   std::vector<std::vector<double > > _PFTauPionsCharge;
+  std::vector<float> PFTauTrack_deltaR;
+  std::vector<std::vector<double > > PFTauLeadTrackLV;
   std::vector<std::vector<double > > _PFTauSVChi2NDofMatchingQuality;
 
 
@@ -847,6 +849,8 @@ void HTauTauNtuplizer::Initialize(){
   _daughters_neutral_pz.clear();
   _daughters_neutral_e.clear();
    
+   
+
   _daughters_TauUpExists.clear();
   _daughters_px_TauUp.clear();
   _daughters_py_TauUp.clear();
@@ -1091,7 +1095,7 @@ void HTauTauNtuplizer::Initialize(){
   _MC_weight_scale_muF2=0.;
   _MC_weight_scale_muR0p5=0.;
   _MC_weight_scale_muR2=0.;
-  
+ 
   if (do_MCComplete_) {
     MC_p4.clear();
     MC_pdgid.clear();
@@ -1207,8 +1211,8 @@ void HTauTauNtuplizer::Initialize(){
   PFTau_Track_pdgid.clear();
   PFTau_Track_B.clear();
   PFTau_Track_M.clear();
-
-
+  PFTauLeadTrackLV.clear();
+  PFTauTrack_deltaR.clear();
 
 }
 
@@ -1539,6 +1543,8 @@ void HTauTauNtuplizer::beginJob(){
   myTree->Branch("PFTau_a1_pdgid", &PFTau_a1_pdgid);
   myTree->Branch("PFTau_a1_B", &PFTau_a1_B);
   myTree->Branch("PFTau_a1_M", &PFTau_a1_M);
+  myTree->Branch("PFTauTrack_deltaR", &PFTauTrack_deltaR);
+  myTree->Branch("PFTauLeadTrackLV", &PFTauLeadTrackLV);
 
   myTree->Branch("JetsNumber",&_numberOfJets,"JetsNumber/I");
   myTree->Branch("jets_px",&_jets_px);
@@ -2485,6 +2491,8 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
     std::vector<double> PionsCharge;
     std::vector<std::vector<double>  >RefitPionsP4;
     std::vector<double> RefitPionsCharge;
+    float iPFTauTrack_deltaR;
+    std::vector<double> iPFTauTrackLV;
     float ia1_M=-999.;
     float ia1_B=-999.;
     int ia1_pdgid=-999;
@@ -2644,6 +2652,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
       numParticlesIsoCone = userdatahelpers::getUserInt (cand, "numParticlesIsoCone");
       leadChargedParticlePt = userdatahelpers::getUserFloat (cand, "leadChargedParticlePt");
       trackRefPt = userdatahelpers::getUserFloat (cand, "trackRefPt");
+      iPFTauTrack_deltaR = userdatahelpers::getUserFloat (cand, "PFTauTrack_deltaR");
 
       ia1_M=userdatahelpers::getUserFloat(cand,"a1_M");
       ia1_B=userdatahelpers::getUserFloat(cand,"a1_B");
@@ -2683,6 +2692,10 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
 
 
 
+	if(taon->hasUserData("PFTauTrackLV")){
+	  for(unsigned int i =0; i < taon->userData<std::vector<double> >("PFTauTrackLV")->size(); i++){iPFTauTrackLV.push_back(taon->userData<std::vector<double> >("PFTauTrackLV")->at(i));  }
+	
+	} //else { _PFTauSVPos.push_back(std::vector<double>());}
 
 	if(taon->hasUserData("SVPos")){
 	  for(unsigned int i =0; i < taon->userData<std::vector<double> >("SVPos")->size(); i++){SVPos.push_back(taon->userData<std::vector<double> >("SVPos")->at(i));  }
@@ -2725,6 +2738,8 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
        }
        ntaus++;
     }
+    PFTauLeadTrackLV.push_back(iPFTauTrackLV);
+    PFTauTrack_deltaR.push_back(iPFTauTrack_deltaR);
     _PFTauSVPos.push_back(SVPos);
     _PFTauSVCov.push_back(SVCov);
     _PFTauSVChi2NDofMatchingQuality.push_back(SVChi2NDof);
@@ -2738,7 +2753,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
     PFTau_a1_charge.push_back(ia1_Charge);
     PFTau_a1_cov.push_back(ia1_cov);
     PFTau_a1_lvp.push_back(ia1_par);
-
+  
     _discriminator.push_back(discr);
     _daughters_typeOfMuon.push_back(typeOfMuon);
     _daughters_muonID.push_back(muIDflag);
