@@ -237,8 +237,8 @@ if( $ARGV[0] eq "--SkimSummary" ){
 #	}
     }
 
-    system(sprintf("rm junk0; "));
-    system(sprintf("rm junk1;"));
+   # system(sprintf("rm junk0; "));
+   # system(sprintf("rm junk1;"));
     system(sprintf("cat junk0 | awk '{print \$9}' >& junk1"));
     close(DAT);
     $idx=0;

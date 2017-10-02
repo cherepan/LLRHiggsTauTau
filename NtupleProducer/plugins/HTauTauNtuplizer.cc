@@ -1809,6 +1809,8 @@ void HTauTauNtuplizer::analyze(const edm::Event& event, const edm::EventSetup& e
   //myNtuple->InitializeVariables();
     
   _indexevents = event.id().event();
+
+  std::cout<<"--------------------------------------------------  " << event.id().event() <<" ------------"<<std::endl;
   _runNumber = event.id().run();
   _lumi=event.luminosityBlock();
   // _met = met.sumEt(); // scalar sum of the pf candidates
@@ -2491,7 +2493,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
     std::vector<double> PionsCharge;
     std::vector<std::vector<double>  >RefitPionsP4;
     std::vector<double> RefitPionsCharge;
-    float iPFTauTrack_deltaR;
+    float iPFTauTrack_deltaR=-999;
     std::vector<double> iPFTauTrackLV;
     float ia1_M=-999.;
     float ia1_B=-999.;
