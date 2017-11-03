@@ -296,7 +296,7 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
         udshiftP[1] = udShift[1]; // down
         udshiftMass[0] = udshiftMass[1] = 1.; // no mass shift for pi0
       }
-      // else if(l.decayMode()==10){
+      // else if(l.decayMode()==110){
       //   shiftP = Shift;
       //   shiftMass = Shift;
       // }
@@ -341,82 +341,82 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   
 
+    /*
 
+     if (l.decayMode() == 0  or l.decayMode() == 1 ) 
+          {
 
-    if (l.decayMode() == 0  or l.decayMode() == 1 or l.decayMode() == 2 ) 
-         {
+     	   reco::Vertex fakeVertex = vertexs->front();
+     	   reco::CandidatePtrVector 	sigCands = l.signalChargedHadrCands();
+     	   //Get tracks associated wiht pfPV
+     	   reco::TrackCollection pvTracks;
+     	   TLorentzVector aTrack;
+     	   for(size_t i=0; i<cands->size(); ++i){
+     	     if((*cands)[i].charge()==0 || (*cands)[i].vertexRef().isNull()) continue;
+     	     if(!(*cands)[i].bestTrack()) continue;
+    	     
+     	     unsigned int key = (*cands)[i].vertexRef().key();
+     	     int quality = (*cands)[i].pvAssociationQuality();
+    	     
+     	     if(key!=0 ||
+     		(quality!=pat::PackedCandidate::UsedInFitTight
+     		 && quality!=pat::PackedCandidate::UsedInFitLoose)) continue;
+    	     
+     	     pvTracks.push_back(*((*cands)[i].bestTrack()));
+     	   }
+    	   
+     	   //---------- find PV track belonging to sigCands
+     	   double deR(999.); 
+     	   reco::Track RefToTauTrack;
+     	   for(auto iter: pvTracks) {
+     	     //  if(std::find(tracksToBeRemoved.begin(), tracksToBeRemoved.end(), iter.pt())!=tracksToBeRemoved.end()) continue;
+     	     if( sqrt(pow(iter.eta() - l.leadChargedHadrCand()->p4().eta(),2) + pow(iter.phi() - l.leadChargedHadrCand()->p4().phi(),2))  < deR){
+     	       deR = sqrt(pow(iter.eta() - l.leadChargedHadrCand()->p4().eta(),2) + pow(iter.phi() - l.leadChargedHadrCand()->p4().phi(),2));
+     	       RefToTauTrack = iter;
+     	     }
+     	   }
+     	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().e());    
+     	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().px());    
+     	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().py());    
+     	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().pz());    
 
-	   reco::Vertex fakeVertex = vertexs->front();
-	   reco::CandidatePtrVector 	sigCands = l.signalChargedHadrCands();
-	   //Get tracks associated wiht pfPV
-	   reco::TrackCollection pvTracks;
-	   TLorentzVector aTrack;
-	   for(size_t i=0; i<cands->size(); ++i){
-	     if((*cands)[i].charge()==0 || (*cands)[i].vertexRef().isNull()) continue;
-	     if(!(*cands)[i].bestTrack()) continue;
-	     
-	     unsigned int key = (*cands)[i].vertexRef().key();
-	     int quality = (*cands)[i].pvAssociationQuality();
-	     
-	     if(key!=0 ||
-		(quality!=pat::PackedCandidate::UsedInFitTight
-		 && quality!=pat::PackedCandidate::UsedInFitLoose)) continue;
-	     
-	     pvTracks.push_back(*((*cands)[i].bestTrack()));
-	   }
-	   
-	   //---------- find PV track belonging to sigCands
-	   double deR(999.); 
-	   reco::Track RefToTauTrack;
-	   for(auto iter: pvTracks) {
-	     //  if(std::find(tracksToBeRemoved.begin(), tracksToBeRemoved.end(), iter.pt())!=tracksToBeRemoved.end()) continue;
-	     if( sqrt(pow(iter.eta() - l.leadChargedHadrCand()->p4().eta(),2) + pow(iter.phi() - l.leadChargedHadrCand()->p4().phi(),2))  < deR){
-	       deR = sqrt(pow(iter.eta() - l.leadChargedHadrCand()->p4().eta(),2) + pow(iter.phi() - l.leadChargedHadrCand()->p4().phi(),2));
-	       RefToTauTrack = iter;
-	     }
-	   }
-	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().e());    
-	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().px());    
-	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().py());    
-	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().pz());    
+     	   //const reco::Track *TauTrack  = (*itr)->bestTrack();
+     	   const reco::Track *TauTrack  =  &RefToTauTrack;
+    	   
+     	   GlobalPoint pvpoint(TauTrack->vx(), TauTrack->vy(), TauTrack->vz());
+     	   reco::TransientTrack transTrk = transTrackBuilder->build(TauTrack);
+     	   TrackParticle tautrackparticle = ParticleBuilder::CreateTrackParticle(transTrk, transTrackBuilder, pvpoint, true, true);
+     	   PFTauTrack_deltaR=deR;
 
-	   //const reco::Track *TauTrack  = (*itr)->bestTrack();
-	   const reco::Track *TauTrack  =  &RefToTauTrack;
-	   
-	   GlobalPoint pvpoint(TauTrack->vx(), TauTrack->vy(), TauTrack->vz());
-	   reco::TransientTrack transTrk = transTrackBuilder->build(TauTrack);
-	   TrackParticle tautrackparticle = ParticleBuilder::CreateTrackParticle(transTrk, transTrackBuilder, pvpoint, true, true);
-	   PFTauTrack_deltaR=deR;
+     	   if(deR< 0.01){
 
-	   if(deR< 0.01){
-
-	     TauTrackFiller_trackCharge=tautrackparticle.Charge();
-	     TauTrackFiller_pdgid=tautrackparticle.PDGID();
-	     TauTrackFiller_B=tautrackparticle.BField();
-	     TauTrackFiller_M=tautrackparticle.Mass();
-	     
-	     for (int i = 0; i < tautrackparticle.NParameters(); i++) {
-	       TauTrackFiller_par.push_back(tautrackparticle.Parameter(i));
-	       for (int j = i; j <tautrackparticle.NParameters(); j++) {
-		 TauTrackFiller_cov.push_back(tautrackparticle.Covariance(i, j));
-	       }
-	     }
-	   }else
-	         {
-		   TauTrackFiller_trackCharge=-999;
-		   TauTrackFiller_pdgid=-999;
-		   TauTrackFiller_B=-999;
-		   TauTrackFiller_M=-999;
-		 }
-	 }else
-               {
-		 TauTrackFiller_trackCharge=-999;
-		 TauTrackFiller_pdgid=-999;
-		 TauTrackFiller_B=-999;
-		 TauTrackFiller_M=-999;
-	       }
+     	     TauTrackFiller_trackCharge=tautrackparticle.Charge();
+     	     TauTrackFiller_pdgid=tautrackparticle.PDGID();
+     	     TauTrackFiller_B=tautrackparticle.BField();
+     	     TauTrackFiller_M=tautrackparticle.Mass();
+    	     
+     	     for (int i = 0; i < tautrackparticle.NParameters(); i++) {
+     	       TauTrackFiller_par.push_back(tautrackparticle.Parameter(i));
+     	       for (int j = i; j <tautrackparticle.NParameters(); j++) {
+     		 TauTrackFiller_cov.push_back(tautrackparticle.Covariance(i, j));
+     	       }
+     	     }
+     	   }else
+     	         {
+     		   TauTrackFiller_trackCharge=-999;
+     		   TauTrackFiller_pdgid=-999;
+     		   TauTrackFiller_B=-999;
+     		   TauTrackFiller_M=-999;
+     		 }
+     	 }else
+                {
+     		 TauTrackFiller_trackCharge=-999;
+     		 TauTrackFiller_pdgid=-999;
+     		 TauTrackFiller_B=-999;
+     		 TauTrackFiller_M=-999;
+     	       }
   
-
+    */
   
 
 

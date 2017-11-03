@@ -166,13 +166,10 @@ MuFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       MuFillerMuon_pdgid=trackparticle.PDGID();
       MuFillerMuon_B=trackparticle.BField();
       MuFillerMuon_M=trackparticle.Mass();
-      std::cout<<" MuonParameters  "<<std::endl;
+      //      std::cout<<" MuonParameters  "<<std::endl;
       for (int i = 0; i < trackparticle.NParameters(); i++) {
 	MuFillerMuon_par.push_back(trackparticle.Parameter(i));
-
-
-	std::cout<<" trackparticle.Parameter(i)  "<<trackparticle.Parameter(i) <<std::endl;
-
+	//	std::cout<<" trackparticle.Parameter(i)  "<<trackparticle.Parameter(i) <<std::endl;
 
 	for (int j = i; j < trackparticle.NParameters(); j++) {
 	  MuFillerMuon_cov.push_back(trackparticle.Covariance(i, j));

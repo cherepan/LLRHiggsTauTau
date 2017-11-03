@@ -1810,7 +1810,7 @@ void HTauTauNtuplizer::analyze(const edm::Event& event, const edm::EventSetup& e
     
   _indexevents = event.id().event();
 
-  std::cout<<"--------------------------------------------------  " << event.id().event() <<" ------------"<<std::endl;
+  // std::cout<<"--------------------------------------------------  " << event.id().event() <<" ------------"<<std::endl;
   _runNumber = event.id().run();
   _lumi=event.luminosityBlock();
   // _met = met.sumEt(); // scalar sum of the pf candidates
