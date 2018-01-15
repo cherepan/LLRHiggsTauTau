@@ -4,8 +4,8 @@ from WMCore.Configuration import Configuration
 config = Configuration()
 
 config.section_("General")
-config.General.requestName = 'SimFitTest_v2'
-config.General.workArea = 'crab3_dy_ll_SimFitTest'
+config.General.requestName = 'SimFitTest_v3'
+config.General.workArea = 'crab3_dy_ll_SimFitTest_v3'
 config.General.transferLogs = True
 
 
@@ -22,7 +22,7 @@ config.Data.unitsPerJob = 100000 #number of events per jobs # 18K FOR SINGLE ELE
 config.Data.totalUnits = 5000000 #number of event
 config.Data.outLFNDirBase = '/store/user/cherepan'
 config.Data.publication = True
-config.Data.outputDatasetTag = 'SimFitTest_v2'
+config.Data.outputDatasetTag = 'SimFitTest_v3'
 
 config.section_("Site")
 config.Site.storageSite = 'T2_FR_IPHC'

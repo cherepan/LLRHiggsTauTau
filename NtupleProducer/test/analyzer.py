@@ -67,9 +67,12 @@ else :
 ### ----------------------------------------------------------------------
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
+
+#'/store/data/Run2016C/Tau/MINIAOD/23Sep2016-v1/70000/B48A89FE-0A8C-E611-AA6D-0025905B859A.root',
+
    '/store/mc/RunIISummer16MiniAODv2/DYJetsToLL_M-50_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/MINIAODSIM/PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6_ext1-v2/60000/4CBBCFDF-F8C6-E611-A5C2-6CC2173BBD40.root',
-   '/store/mc/RunIISummer16MiniAODv2/DYJetsToLL_M-50_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/MINIAODSIM/PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6_ext1-v2/60000/4E0A55B3-C5C3-E611-8574-00237DF2B400.root',
-   '/store/mc/RunIISummer16MiniAODv2/DYJetsToLL_M-50_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/MINIAODSIM/PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6_ext1-v2/60000/525535E1-CCC3-E611-B545-001E0BC1DE40.root',
+#   '/store/mc/RunIISummer16MiniAODv2/DYJetsToLL_M-50_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/MINIAODSIM/PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6_ext1-v2/60000/4E0A55B3-C5C3-E611-8574-00237DF2B400.root',
+#   '/store/mc/RunIISummer16MiniAODv2/DYJetsToLL_M-50_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/MINIAODSIM/PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6_ext1-v2/60000/525535E1-CCC3-E611-B545-001E0BC1DE40.root',
 
 # '/store/data/Run2016E/Tau/MINIAOD/23Sep2016-v1/100000/02137093-6391-E611-9152-0090FAA57C60.root',
 #'/store/mc/RunIISpring16MiniAODv2/DYJetsToLL_M-50_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/MINIAODSIM/PUSpring16_80X_mcRun2_asymptotic_2016_miniAODv2_v0_ext1-v1/00000/625723D6-121B-E611-8D27-001E67247BCF.root',
@@ -78,8 +81,11 @@ process.source = cms.Source("PoolSource",
  #'/store/mc/RunIISummer16MiniAODv2/ZZ_TuneCUETP8M1_13TeV-pythia8/MINIAODSIM/PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6_ext1-v1/80000/02C8895F-E8DA-E611-8CC9-0023AEEEB55F.root',
    
  # '/store/mc/RunIISpring15DR74/ZZTo2L2Q_13TeV_amcatnloFXFX_madspin_pythia8/MINIAODSIM/Asympt25ns_MCRUN2_74_V9-v1/80000/82A4E89C-4B1C-E511-A243-AC853D9F5344.root',
-
-    # '/store/data/Run2016B/SingleMuon/MINIAOD/23Sep2016-v3/120000/E6D5D5EB-8299-E611-83D1-FA163EB4F61D.root',
+#   '/store/data/Run2016H/Tau/MINIAOD/03Feb2017_ver2-v1/110000/5CA04EC4-1CEB-E611-9014-C4346BC78A40.root',
+#     '/store/data/Run2016E/SingleMuon/MINIAOD/23Sep2016-v1/50000/00CFC689-8D8D-E611-9F90-0CC47A13D16E.root',
+#     '/store/data/Run2016E/SingleMuon/MINIAOD/23Sep2016-v1/50000/0230DB91-868D-E611-A532-0025904A96BC.root',
+#     '/store/data/Run2016E/SingleMuon/MINIAOD/23Sep2016-v1/50000/02C619E4-EC8C-E611-8410-0242AC130002.root',
+#     '/store/data/Run2016E/SingleMuon/MINIAOD/23Sep2016-v1/50000/0416EE11-988D-E611-B4E1-003048FFD71C.root',
     #'/store/data/Run2016C/SingleMuon/MINIAOD/23Sep2016-v1/80000/F8F49A79-BE89-E611-A029-008CFA1974E4.root'
     #'/store/data/Run2016B/SingleMuon/MINIAOD/PromptReco-v2/000/273/150/00000/34A57FB8-D819-E611-B0A4-02163E0144EE.root', #80X data
     # '/store/mc/RunIISpring16MiniAODv1/GluGluToBulkGravitonToHHTo2B2Tau_M-400_narrow_13TeV-madgraph/MINIAODSIM/PUSpring16RAWAODSIM_80X_mcRun2_asymptotic_2016_v3_ext1-v1/30000/06E22BEA-9F10-E611-9862-1CB72C0A3A5D.root', #80X MC
@@ -87,9 +93,9 @@ process.source = cms.Source("PoolSource",
     )
 )
 process.load("FWCore.MessageService.MessageLogger_cfi")
-process.MessageLogger.cerr.FwkReport.reportEvery = 500
+process.MessageLogger.cerr.FwkReport.reportEvery = 1000
 #Limited nEv for testing purposes. -1 to run all events
-process.maxEvents.input = 100000
+process.maxEvents.input = 2000
 
 # JSON mask for data --> defined in the lumiMask file
 # from JSON file

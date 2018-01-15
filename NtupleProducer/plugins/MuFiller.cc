@@ -160,13 +160,16 @@ MuFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       iSetup.get<TransientTrackRecord>().get("TransientTrackBuilder",transTrackBuilder);
       reco::TransientTrack transTrk = transTrackBuilder->build(l.muonBestTrack());
       TrackParticle trackparticle = ParticleBuilder::CreateTrackParticle(transTrk, transTrackBuilder, pvpoint, true, true);
-      // LorentzVectorParticle MuonLVP  = ParticleBuilder::CreateLorentzVectorParticle(transTrk, transTrackBuilder, fakeVertex, true, true);
-      // MuonLVP.LVCov().Print();
+       LorentzVectorParticle MuonLVP  = ParticleBuilder::CreateLorentzVectorParticle(transTrk, transTrackBuilder, fakeVertex, true, true);
+       // MuonLVP.LVCov().Print();
       MuFillerMuon_trackCharge=trackparticle.Charge();
       MuFillerMuon_pdgid=trackparticle.PDGID();
       MuFillerMuon_B=trackparticle.BField();
       MuFillerMuon_M=trackparticle.Mass();
-      //      std::cout<<" MuonParameters  "<<std::endl;
+      // std::cout<<" MuonParameters  "<<std::endl;
+      // std::cout<<" q_overP  "<< 1/l.p() <<std::endl;
+      // std::cout<<" MuonLVP.P() " <<   MuonLVP.LV().P() <<  "   "<< l.p() << "  "  << sqrt(l.px()*l.px() + l.py()*l.py())<<std::endl;
+      // std::cout<<" MuFillerMuon_B "<< MuFillerMuon_B <<std::endl;
       for (int i = 0; i < trackparticle.NParameters(); i++) {
 	MuFillerMuon_par.push_back(trackparticle.Parameter(i));
 	//	std::cout<<" trackparticle.Parameter(i)  "<<trackparticle.Parameter(i) <<std::endl;

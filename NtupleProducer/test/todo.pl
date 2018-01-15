@@ -256,8 +256,8 @@ if( $ARGV[0] eq "--SkimSummary" ){
 	$idx++;
 	$myDIR=getcwd;
 	opendir(DIR,"$myDIR/$data/");
-#	printf("Searching: $myDIR/$data/ \n");
-	system(sprintf("ls $myDIR/$data/"));
+	printf("Searching: $myDIR/$data/ \n");
+#	system(sprintf("ls $myDIR/$data/"));
 	@dirs = grep {(/crab_/)} readdir(DIR);
 	closedir DIR;
 	foreach $subdir (@dirs){

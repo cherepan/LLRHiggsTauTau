@@ -602,6 +602,16 @@ class HTauTauNtuplizer : public edm::EDAnalyzer {
 
   std::vector<std::vector<double > > _PFTauSVPos;
   std::vector<std::vector<double > > _PFTauSVCov;
+
+  std::vector<std::vector<double > > _PFTau_TIP_PVPos;
+  std::vector<std::vector<double > > _PFTau_TIP_PVCov;
+
+
+  std::vector<double>  PFTauGEOMFlightLenght;
+  std::vector<double>  PFTauGEOMFlightLenghtSignificance;
+
+
+
   std::vector<std::vector<std::vector<double > > > _PFTauPionsP4;
   std::vector<std::vector<std::vector<double > > > _PFTauRefitPionsP4;
   std::vector<std::vector<double > > _PFTauPionsCharge;
@@ -617,7 +627,7 @@ class HTauTauNtuplizer : public edm::EDAnalyzer {
   std::vector<double>  PFTau_a1_B;
   std::vector<double>  PFTau_a1_M;
 
-
+  std::vector<Float_t> TauFLSignificance;
 
 
 
@@ -912,6 +922,9 @@ void HTauTauNtuplizer::Initialize(){
   _daughters_L3FilterFiredLast.clear();
   _PFTauSVPos.clear();
   _PFTauSVCov.clear();
+
+  _PFTau_TIP_PVPos.clear();
+  _PFTau_TIP_PVCov.clear();
   _PFTauPionsP4.clear();
   _PFTauRefitPionsP4.clear();
   _PFTauPionsCharge.clear();
@@ -1213,6 +1226,10 @@ void HTauTauNtuplizer::Initialize(){
   PFTau_Track_M.clear();
   PFTauLeadTrackLV.clear();
   PFTauTrack_deltaR.clear();
+  TauFLSignificance.clear();
+  PFTauGEOMFlightLenght.clear();
+  PFTauGEOMFlightLenghtSignificance.clear();
+
 
 }
 
@@ -1512,10 +1529,19 @@ void HTauTauNtuplizer::beginJob(){
 
   myTree->Branch("PFTauSVPos", &_PFTauSVPos);
   myTree->Branch("PFTauSVCov", &_PFTauSVCov);
+  myTree->Branch("PFTau_TIP_PVPos", &_PFTau_TIP_PVPos);
+  myTree->Branch("PFTau_TIP_PVCov", &_PFTau_TIP_PVCov);
+
+
   myTree->Branch("PFTauPionsP4", &_PFTauPionsP4);
   myTree->Branch("PFTauRefitPionsP4", &_PFTauRefitPionsP4);
   myTree->Branch("PFTauPionsCharge", &_PFTauPionsCharge);
   myTree->Branch("PFTauSVChi2NDofMatchingQuality", &_PFTauSVChi2NDofMatchingQuality);
+
+  myTree->Branch("TauFLSignificance", &TauFLSignificance);
+  myTree->Branch("PFTauGEOMFlightLenght", &PFTauGEOMFlightLenght);
+  myTree->Branch("PFTauGEOMFlightLenghtSignificance", &PFTauGEOMFlightLenghtSignificance);
+
 
   myTree->Branch("daughters_jetNDauChargedMVASel",&_daughters_jetNDauChargedMVASel);
   myTree->Branch("daughters_miniRelIsoCharged",&_daughters_miniRelIsoCharged);
@@ -1636,6 +1662,7 @@ Int_t HTauTauNtuplizer::FindCandIndex(const reco::Candidate& cand,Int_t iCand=0)
 void HTauTauNtuplizer::analyze(const edm::Event& event, const edm::EventSetup& eSetup)
 { 
   //  if(DEBUG)printf("\n\n\n===New Event===   "); 
+  //  std::cout<<" =========  new event =======" << std::endl;
    Initialize();
    if (doCPVariables) findPrimaryVertices(event, eSetup);
   
@@ -2342,7 +2369,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
   float rho_miniRelIso = *rhoHandle_miniRelIso;
   unsigned int ntaus(0);
   //  unsigned int ntausc(0);
-  //  std::cout<<" ---------------------------  "<<std::endl;
+  //    std::cout<<" ---------------------------  "<<std::endl;
   for(edm::View<reco::Candidate>::const_iterator daui = daus->begin(); daui!=daus->end();++daui){
 
     const reco::Candidate* cand = &(*daui);
@@ -2396,7 +2423,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
         pfour+=fsr->p4();
       }
     } 
-  
+    //    std::cout<<"  Px   " <<(float) pfour.X() <<std::endl;
     _daughters_px.push_back( (float) pfour.X());
     _daughters_py.push_back( (float) pfour.Y());
     _daughters_pz.push_back( (float) pfour.Z());
@@ -2442,6 +2469,7 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
      else if(cand->isElectron()) type = ParticleType::ELECTRON;
     _particleType.push_back(type);
   
+    //    std::cout<<"Particle type  "<< type <<std::endl;
 
     //Find closest jet for lepton MVA
     float dRmin_cand_jet = 0.4;
@@ -2488,6 +2516,17 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
     photonPtSumOutsideSignalCone;
     std::vector<double> SVPos;
     std::vector<double> SVCov;
+
+    std::vector<double> TIPPVPos;
+    std::vector<double> TIPPVCov;
+
+    double GEOMFlightLenght(-999);
+    double GEOMFlightLenghtSignificance(-999);
+    double iFLSign(-999.);
+
+
+
+
     std::vector<double> SVChi2NDof;
     std::vector<std::vector<double>  >PionsP4;
     std::vector<double> PionsCharge;
@@ -2501,10 +2540,9 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
     int ia1_Charge=-999;
     std::vector<double> ia1_cov;
     std::vector<double> ia1_par;
-
   
 
-
+    
     float dxy_innerTrack = -1., dz_innerTrack = -1., sip = -1., error_trackpt=-1.;
     int jetNDauChargedMVASel = -1;
     float miniRelIsoCharged = -1., miniRelIsoNeutral = -1.;
@@ -2655,14 +2693,15 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
       leadChargedParticlePt = userdatahelpers::getUserFloat (cand, "leadChargedParticlePt");
       trackRefPt = userdatahelpers::getUserFloat (cand, "trackRefPt");
       iPFTauTrack_deltaR = userdatahelpers::getUserFloat (cand, "PFTauTrack_deltaR");
+      iFLSign = userdatahelpers::getUserFloat (cand, "FLSig");
 
       ia1_M=userdatahelpers::getUserFloat(cand,"a1_M");
       ia1_B=userdatahelpers::getUserFloat(cand,"a1_B");
       ia1_pdgid=userdatahelpers::getUserInt(cand,"a1_pdgid");
       ia1_Charge=userdatahelpers::getUserInt(cand,"a1_charge");
 
-
-
+      GEOMFlightLenght= userdatahelpers::getUserFloat (cand, "GEOMFlightLenght");
+      GEOMFlightLenghtSignificance= userdatahelpers::getUserFloat (cand, "GEOMFlightLenghtSignificance");
     
       const pat::Tau *taon  = dynamic_cast<const pat::Tau*>(cand);
       if(taon){
@@ -2696,18 +2735,32 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
 
 	if(taon->hasUserData("PFTauTrackLV")){
 	  for(unsigned int i =0; i < taon->userData<std::vector<double> >("PFTauTrackLV")->size(); i++){iPFTauTrackLV.push_back(taon->userData<std::vector<double> >("PFTauTrackLV")->at(i));  }
-	
-	} //else { _PFTauSVPos.push_back(std::vector<double>());}
+	} 
 
 	if(taon->hasUserData("SVPos")){
 	  for(unsigned int i =0; i < taon->userData<std::vector<double> >("SVPos")->size(); i++){SVPos.push_back(taon->userData<std::vector<double> >("SVPos")->at(i));  }
+	} 
 	
-	} //else { _PFTauSVPos.push_back(std::vector<double>());}
-	
-	 if(taon->hasUserData("SVCov")){
-	   for(unsigned int i =0; i < taon->userData<std::vector<double> >("SVCov")->size(); i++){SVCov.push_back(taon->userData<std::vector<double> >("SVCov")->at(i));  }
+	if(taon->hasUserData("SVCov")){
+	  for(unsigned int i =0; i < taon->userData<std::vector<double> >("SVCov")->size(); i++){SVCov.push_back(taon->userData<std::vector<double> >("SVCov")->at(i));  }
+	}
 
-	 }//else { _PFTauSVCov.push_back(std::vector<double>());}
+
+
+	if(taon->hasUserData("PFTau_TIP_PVPos")){
+	  for(unsigned int i =0; i < taon->userData<std::vector<double> >("PFTau_TIP_PVPos")->size(); i++){TIPPVPos.push_back(taon->userData<std::vector<double> >("PFTau_TIP_PVPos")->at(i));  }
+	} 
+	
+	if(taon->hasUserData("PFTau_TIP_PVCov")){
+	  for(unsigned int i =0; i < taon->userData<std::vector<double> >("PFTau_TIP_PVCov")->size(); i++){TIPPVCov.push_back(taon->userData<std::vector<double> >("PFTau_TIP_PVCov")->at(i));  }
+	}
+
+
+
+
+
+
+
 	 if(taon->hasUserData("SVChi2NDofMatchingQual")){
 	   for(unsigned int i =0; i < taon->userData<std::vector<double> >("SVChi2NDofMatchingQual")->size(); i++){SVChi2NDof.push_back(taon->userData<std::vector<double> >("SVChi2NDofMatchingQual")->at(i));  }
 	 
@@ -2740,10 +2793,20 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
        }
        ntaus++;
     }
+    //  std::cout<<"   "<< iFLSign <<std::endl;
+
+    TauFLSignificance.push_back(iFLSign);
     PFTauLeadTrackLV.push_back(iPFTauTrackLV);
     PFTauTrack_deltaR.push_back(iPFTauTrack_deltaR);
+    PFTauGEOMFlightLenght.push_back(GEOMFlightLenght);
+    PFTauGEOMFlightLenghtSignificance.push_back(GEOMFlightLenghtSignificance);
     _PFTauSVPos.push_back(SVPos);
     _PFTauSVCov.push_back(SVCov);
+    //  std::cout<<" size  "<<TauFLSignificance.size() <<"   " <<PFTauGEOMFlightLenght.size()  <<std::endl;
+
+    _PFTau_TIP_PVPos.push_back(TIPPVPos);
+    _PFTau_TIP_PVCov.push_back(TIPPVCov);
+
     _PFTauSVChi2NDofMatchingQuality.push_back(SVChi2NDof);
     _PFTauPionsP4.push_back(PionsP4);
     _PFTauRefitPionsP4.push_back(RefitPionsP4);
@@ -3030,6 +3093,8 @@ void HTauTauNtuplizer::FillSoftLeptons(const edm::View<reco::Candidate> *daus,
     _daughters_isL1IsoTau28Matched.push_back(isL1IsoTauMatched) ;
 
   }
+  //std::cout<<" size  "<<TauFLSignificance.size() <<"   " <<PFTauGEOMFlightLenght.size()  <<std::endl;
+
 }
 
 /*
@@ -3244,6 +3309,7 @@ void HTauTauNtuplizer::fillMCTruth(const edm::Event& iEvent, const edm::EventSet
     iEvent.getByToken (ThePrunedGenTag_, genHandle);
     myTauDecay.CheckForSignal(DataMC_Type_idx, genHandle);
     _DataMC_Type=DataMC_Type_idx;
+    //    std::cout<<"HTauTauNtuplizer:  _DataMC_Type "<< _DataMC_Type <<std::endl;
     if (do_MCComplete_) {
       for (unsigned int iGenPartilce = 0; iGenPartilce < genHandle->size(); iGenPartilce++){
 	const GenParticle& genP = (*genHandle)[iGenPartilce];
@@ -3326,14 +3392,25 @@ void HTauTauNtuplizer::fillMCTruth(const edm::Event& iEvent, const edm::EventSet
 		MCTauandProd_charge.push_back(std::vector<int>());
 		MCTauandProd_p4.push_back(std::vector<std::vector<double> >());
 		MCTauandProd_Vertex.push_back(std::vector<std::vector<double> >());
+		// if(_DataMC_Type==10130533 || _DataMC_Type==10230533)std::cout<<_DataMC_Type << std::endl;
+		// double apx(0),apy(0), apz(0), ae(0);
 		
 		for (unsigned int i = 0; i < TauDecayProducts.size(); i++) {
 		  MCTauandProd_pdgid.at(tauidx).push_back(TauDecayProducts.at(i)->pdgId());
 		  MCTauandProd_charge.at(tauidx).push_back(TauDecayProducts.at(i)->charge());
 		  
+
 		  std::vector<double> iTauandProd_p4;
 		  std::vector<double> iTauandProd_vertex;
-		 //std::cout<<" TauDecayProducts PDG ID   " << TauDecayProducts.at(i)->pdgId() << " px " << TauDecayProducts.at(i)->p4().px() <<endl;
+		  // if(_DataMC_Type==10130533 || _DataMC_Type==10230533){
+		  //   if(fabs(TauDecayProducts.at(i)->pdgId()) == 211) {
+		  //     std::cout<<" TauDecayProducts PDG ID   " << TauDecayProducts.at(i)->pdgId() << " px " << TauDecayProducts.at(i)->p4().px() << " charge  " << TauDecayProducts.at(i)->charge()<<endl;
+		  //     apx+=TauDecayProducts.at(i)->p4().Px();
+		  //     apy+=TauDecayProducts.at(i)->p4().Py();
+		  //     apz+=TauDecayProducts.at(i)->p4().Pz();
+		  //     ae +=TauDecayProducts.at(i)->p4().E();
+		  //   }
+		  // }
 		  iTauandProd_p4.push_back(TauDecayProducts.at(i)->p4().E());
 		  iTauandProd_p4.push_back(TauDecayProducts.at(i)->p4().Px());
 		  iTauandProd_p4.push_back(TauDecayProducts.at(i)->p4().Py());
@@ -3346,6 +3423,11 @@ void HTauTauNtuplizer::fillMCTruth(const edm::Event& iEvent, const edm::EventSet
 		  MCTauandProd_p4.at(tauidx).push_back(iTauandProd_p4);
 		  MCTauandProd_Vertex.at(tauidx).push_back(iTauandProd_vertex);
 		}
+		// if((_DataMC_Type==10130533 || _DataMC_Type==10230533 )&& apx!=0){
+
+		// TLorentzVector a1(apx,apy,apz,ae);
+		// std::cout<<" gen a1 Mass and Px "<< a1.M() <<"   "<< a1.Px() << std::endl;
+		// }
 	      }
 	    }
 	  }

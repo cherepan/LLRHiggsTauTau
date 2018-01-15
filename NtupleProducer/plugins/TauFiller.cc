@@ -48,13 +48,310 @@
 #include "LLRHiggsTauTau/NtupleProducer/interface/ParticleBuilder.h"
 #include "LLRHiggsTauTau/NtupleProducer/interface/LorentzVectorParticle.h"
 #include "LLRHiggsTauTau/NtupleProducer/interface/PDGInfo.h"
-
+#include "LLRHiggsTauTau/NtupleProducer/interface/TrackHelixVertexFitter.h"
+#include "TRandom3.h"
 
 using namespace edm;
 using namespace std;
 using namespace reco;
 
 //bool recomputeBDT = false;
+
+
+struct sv_pair {
+	double flightLength;
+	double flightLengthSignificance;
+};
+
+TRandom3 *r3 = new TRandom3();
+
+typedef ROOT::Math::DisplacementVector3D<ROOT::Math::Cartesian3D<double>, ROOT::Math::DefaultCoordinateSystemTag> ROOT_TTree_vector3D;
+
+struct sv_pair geometrical_SV(
+	ROOT_TTree_vector3D& b_1, ROOT_TTree_vector3D& tr1,
+	ROOT_TTree_vector3D& b_2, ROOT_TTree_vector3D& tr2,
+	ROOT_TTree_vector3D& b_3, ROOT_TTree_vector3D& tr3
+	)
+	{
+	//Float_t tracker_error = 0.002; // approximately systematic error on positions
+	// it will cancel out with weights
+
+	TVector3 b_vec1, b_vec2, b_vec3;
+	//b_vec1.SetXYZ(-b1x, -b1y, -b1z); // 100% known that z here has giant error -- need to do something with it
+	//b_vec2.SetXYZ(-b2x, -b2y, -b2z);
+	//b_vec3.SetXYZ(-b3x, -b3y, -b3z);
+	b_vec1.SetXYZ(b_1.X(), b_1.Y(), b_1.Z());
+	b_vec2.SetXYZ(b_2.X(), b_2.Y(), b_2.Z());
+	b_vec3.SetXYZ(b_3.X(), b_3.Y(), b_3.Z());
+
+	// I need just the direction of tracks for geometry
+	// thus making copy
+	TVector3 t1, t2, t3;
+	t1.SetXYZ(tr1.X(), tr1.Y(), tr1.Z());
+	t2.SetXYZ(tr2.X(), tr2.Y(), tr2.Z());
+	t3.SetXYZ(tr3.X(), tr3.Y(), tr3.Z());
+	//t1.SetPtEtaPhi(v1pt, v1eta, v1phi);
+	//t2.SetPtEtaPhi(v2pt, v2eta, v2phi);
+	//t3.SetPtEtaPhi(v3pt, v3eta, v3phi);
+
+	// weighted bis direction -- used in simple b SV (Friday result)
+	TVector3 t_sum = t1 + t2 + t3;
+
+	// root throws warning "zero vector can't be streched"
+	// crab jobs crash with it
+	// protective programming follows
+	struct sv_pair sv_zeros = {0., 0.};
+	if (t_sum.Mag() == 0)
+		return sv_zeros;
+	t_sum.SetMag(1);
+
+	// after establishing direction of tau
+	// tracks are only geometrical lines
+	if (t1.Mag() == 0 || t2.Mag() == 0 || t3.Mag() == 0)
+		return sv_zeros;
+	t1.SetMag(1);
+	t2.SetMag(1);
+	t3.SetMag(1);
+
+	//TVector3 tau = t1+t2+t3;
+	//TVector3 tau;
+	//tau.SetPtEtaPhi(taupt, taueta, tauphi);
+	// tests show that tau direction and the sum are practically the same
+
+	// find the "optimal direction"
+	// -- direction of minimal angles betwee tracks and b-s in perpendicular plane
+
+	// 2)
+	// just shift bis direction randomly in max phi max theta deviations
+	// choose best position, i.e. max sum b-track angles in transverse plane
+	// thus, no Z changes
+	double max_angle_sum = 0;
+	TVector3 max_average = t_sum; // initial best direction is bis
+
+	// find max phi and theta dev around bis
+	double max_dPhi = 0, max_dTheta = 0;
+
+	double dPhi = abs(t_sum.Phi() - t1.Phi());
+	if (dPhi > max_dPhi) max_dPhi = dPhi;
+	dPhi = abs(t_sum.Phi() - t2.Phi());
+	if (dPhi > max_dPhi) max_dPhi = dPhi;
+	dPhi = abs(t_sum.Phi() - t3.Phi());
+	if (dPhi > max_dPhi) max_dPhi = dPhi;
+
+	double dTheta = abs(t_sum.Theta() - t1.Theta());
+	if (dTheta > max_dTheta) max_dTheta = dTheta;
+	dTheta = abs(t_sum.Theta() - t2.Theta());
+	if (dTheta > max_dTheta) max_dTheta = dTheta;
+	dTheta = abs(t_sum.Theta() - t3.Theta());
+	if (dTheta > max_dTheta) max_dTheta = dTheta;
+
+	for (unsigned int i = 0; i<1000; i++)
+		{
+		//// uniform search around bis dir +- max dphi
+		//double dPhi_shift   = max_dPhi * r3->Uniform() * 2 - max_dPhi;
+		//double dTheta_shift = max_dTheta * r3->Uniform() * 2 - max_dTheta;
+		//TVector3 direction = t_sum;
+		//direction.SetPhi(t_sum.Phi() + dPhi_shift);
+		//direction.SetTheta(t_sum.Theta() + dTheta_shift);
+
+		// Gaussian + Markov walk from bis dir
+		double dPhi_shift   = r3->Gaus(0, max_dPhi);
+		double dTheta_shift = r3->Gaus(0, max_dTheta);
+		// shift around current best (in principle I should also reduce sigma..)
+		TVector3 direction = max_average;
+		direction.SetPhi(max_average.Phi() + dPhi_shift);
+		direction.SetTheta(max_average.Theta() + dTheta_shift);
+
+		if (direction.Mag() == 0)
+			return sv_zeros;
+		direction.SetMag(1); // just in case
+
+		// and to the direction
+		// find perpendicular b-s
+		TVector3 b_long1 = direction * (b_vec1.Dot(direction));
+		TVector3 b_perp1 = b_vec1 - b_long1;
+		TVector3 b_long2 = direction * (b_vec2.Dot(direction));
+		TVector3 b_perp2 = b_vec2 - b_long2;
+		TVector3 b_long3 = direction * (b_vec3.Dot(direction));
+		TVector3 b_perp3 = b_vec3 - b_long3;
+
+		// perpendicular parts of tracks
+		TVector3 t1_long = direction * (t1.Dot(direction));
+		TVector3 t1_perp = t1 - t1_long;
+		TVector3 t2_long = direction * (t2.Dot(direction));
+		TVector3 t2_perp = t2 - t2_long;
+		TVector3 t3_long = direction * (t3.Dot(direction));
+		TVector3 t3_perp = t3 - t3_long;
+
+		double angle_sum = b_perp1.Angle(t1_perp) + b_perp2.Angle(t2_perp) + b_perp3.Angle(t3_perp);
+		if (angle_sum > max_angle_sum)
+			{
+			max_angle_sum = angle_sum;
+			max_average = direction;
+			}
+		}
+
+	// and to optimal direction
+	// find perpendicular b-s
+	TVector3 b_long1 = max_average * (b_vec1.Dot(max_average));
+	TVector3 b_perp1 = b_vec1 - b_long1;
+	TVector3 b_long2 = max_average * (b_vec2.Dot(max_average));
+	TVector3 b_perp2 = b_vec2 - b_long2;
+	TVector3 b_long3 = max_average * (b_vec3.Dot(max_average));
+	TVector3 b_perp3 = b_vec3 - b_long3;
+
+	// perpendicular parts of tracks
+	TVector3 t1_long = max_average * (t1.Dot(max_average));
+	TVector3 t1_perp = t1 - t1_long;
+	TVector3 t2_long = max_average * (t2.Dot(max_average));
+	TVector3 t2_perp = t2 - t2_long;
+	TVector3 t3_long = max_average * (t3.Dot(max_average));
+	TVector3 t3_perp = t3 - t3_long;
+
+	// project found b-s to perp tracks
+	// in principle it should not be needed, since the direction is found to fit them together well
+	// but let's try to get to simple SV best result
+	if (t1_perp.Mag() == 0 || t2_perp.Mag() == 0 || t3_perp.Mag() == 0)
+		return sv_zeros;
+	t1_perp.SetMag(1);
+	t2_perp.SetMag(1);
+	t3_perp.SetMag(1);
+
+	TVector3 b_long_perp1 = t1_perp * (b_perp1.Dot(t1_perp));
+	TVector3 b_long_perp2 = t2_perp * (b_perp2.Dot(t2_perp));
+	TVector3 b_long_perp3 = t3_perp * (b_perp3.Dot(t3_perp));
+
+	// [let's try without these for now]
+
+	/*
+	TVector3 b_long_perp1 = b_perp1;
+	TVector3 b_long_perp2 = b_perp2;
+	TVector3 b_long_perp3 = b_perp3;
+	*/
+
+
+	// perpendiculars to bis direction, for reference
+	// find perpendicular b-s
+	TVector3 b_bis_long1 = t_sum * (b_vec1.Dot(t_sum));
+	TVector3 b_bis_perp1 = b_vec1 - b_bis_long1;
+	TVector3 b_bis_long2 = t_sum * (b_vec2.Dot(t_sum));
+	TVector3 b_bis_perp2 = b_vec2 - b_bis_long2;
+	TVector3 b_bis_long3 = t_sum * (b_vec3.Dot(t_sum));
+	TVector3 b_bis_perp3 = b_vec3 - b_bis_long3;
+
+	// perpendicular parts of tracks
+	TVector3 t1_bis_long = t_sum * (t1.Dot(t_sum));
+	TVector3 t1_bis_perp = t1 - t1_bis_long;
+	TVector3 t2_bis_long = t_sum * (t2.Dot(t_sum));
+	TVector3 t2_bis_perp = t2 - t2_bis_long;
+	TVector3 t3_bis_long = t_sum * (t3.Dot(t_sum));
+	TVector3 t3_bis_perp = t3 - t3_bis_long;
+
+	// in the perp plane find b long to tracks
+	// -- nope, no additional correction to b-s
+
+	// the best point calculation
+	// with just transverse b-s
+	//TVector3 dV = t1 - t2;
+	//TVector3 dB = b_perp1 - b_perp2;
+	//double x12 = dV.Dot(dB) / dV.Mag2();
+	//dV = t2 - t3;
+	//dB = b_perp2 - b_perp3;
+	//double x23 = dV.Dot(dB) / dV.Mag2();
+	//dV = t3 - t1;
+	//dB = b_perp3 - b_perp1;
+	//double x31 = dV.Dot(dB) / dV.Mag2();
+
+	// the best point calculation with projected b-s
+	TVector3 dV = t1 - t2;
+	TVector3 dB1 = b_long_perp1 - b_long_perp2;
+	double x12 = - dV.Dot(dB1) / dV.Mag2();
+
+	dV = t2 - t3;
+	TVector3 dB2 = b_long_perp2 - b_long_perp3;
+	double x23 = - dV.Dot(dB2) / dV.Mag2();
+
+	dV = t3 - t1;
+	TVector3 dB3 = b_long_perp3 - b_long_perp1;
+	double x31 = - dV.Dot(dB3) / dV.Mag2();
+
+	TVector3 bp12 = b_long_perp1 + x12 * t1;
+	TVector3 bp21 = b_long_perp2 + x12 * t2;
+	TVector3 bp_1 = 0.5*(bp12 + bp21);
+
+	TVector3 bp23 = b_long_perp2 + x23 * t2;
+	TVector3 bp32 = b_long_perp3 + x23 * t3;
+	TVector3 bp_2 = 0.5*(bp23 + bp32);
+
+	TVector3 bp31 = b_long_perp3 + x31 * t3;
+	TVector3 bp13 = b_long_perp1 + x31 * t1;
+	TVector3 bp_3 = 0.5*(bp31 + bp13);
+
+	TVector3 bp_average = 0.3333*(bp_1 + bp_2 + bp_3);
+	TVector3 bp_dev1 = bp_1 - bp_average;
+	TVector3 bp_dev2 = bp_2 - bp_average;
+	TVector3 bp_dev3 = bp_3 - bp_average;
+
+	/*
+	// and systematic error of tracker
+	double syst12 = tracker_error / t1.Angle(t2); // technically / Sin (or Tan), but Sin = Angle with these angles
+	double syst23 = tracker_error / t2.Angle(t3); // technically / Sin (or Tan), but Sin = Angle with these angles
+	double syst31 = tracker_error / t3.Angle(t1); // technically / Sin (or Tan), but Sin = Angle with these angles
+	//double syst = pow(syst12, 2) + pow(syst23, 2) + pow(syst31, 2);
+	double syst12_weight = 1/syst12;
+	double syst23_weight = 1/syst23;
+	double syst31_weight = 1/syst31;
+	// not weighted averages
+	double x_average = (x12 + x23 + x31) / 3;
+	double x_deviation = (pow(x12 - x_average, 2) + pow(x23 - x_average, 2) + pow(x31 - x_average, 2)) * 0.3333;
+	//double x_dev_syst = x_deviation + syst;
+	// weighted average with tracker errors
+	//double x_average = (x12*syst12_weight + x23*syst23_weight + x31*syst31_weight) / (syst12_weight + syst23_weight + syst31_weight);
+	//double x_deviation = (syst12_weight*pow(x12 - x_average, 2) + syst23_weight*pow(x23 - x_average, 2) + syst31_weight*pow(x31 - x_average, 2))/(2*(syst12_weight + syst23_weight + syst31_weight)/3);
+	*/
+
+	double convergence_factor = 1;
+
+	//double triang_a = 0, triang_b = 0;
+	//const double tan60 = 1.732, sin60 = 0.866;
+
+	double conv1 = (bp12 - bp21).Mag();
+	double conv2 = (bp23 - bp32).Mag();
+	double conv3 = (bp31 - bp13).Mag();
+	double conv_frac1 = conv1/dB1.Mag();
+	double conv_frac2 = conv2/dB2.Mag();
+	double conv_frac3 = conv3/dB3.Mag();
+	double conv_frac_sum = conv_frac1 + conv_frac2 + conv_frac3;
+	//	double conv_frac_averaged = sqrt(pow(conv_frac1, 2) + pow(conv_frac2, 2) + pow(conv_frac3, 2));
+
+	// SV out of all penalties
+	double flightLength = 0, flightLengthSignificance = 0;
+	// by relative convergence volume
+	convergence_factor *= 1 / (1 + conv_frac1 * conv_frac2 * conv_frac3 / 0.027); // 0.027 = 0.3*0.3*0.3 -- when fractions are equal
+	// by fraction sum-s, extracting correlation of divergences
+	convergence_factor *= 1 / (1 + (conv_frac1/conv_frac_sum) * (conv_frac2/conv_frac_sum) * (conv_frac3/conv_frac_sum));
+
+	// sign of flight
+	if (bp_average.Dot(t_sum) > 0)
+		{
+		flightLength = bp_average.Mag();
+		flightLengthSignificance = flightLength * convergence_factor / sqrt(pow(bp_dev1.Mag(), 2) + pow(bp_dev2.Mag(), 2) + pow(bp_dev3.Mag(), 2));
+		}
+	else
+		{
+		flightLength = - bp_average.Mag();
+		flightLengthSignificance = flightLength * convergence_factor / sqrt(pow(bp_dev1.Mag(), 2) + pow(bp_dev2.Mag(), 2) + pow(bp_dev3.Mag(), 2));
+		}
+
+	struct sv_pair SV = {.flightLength = flightLength, .flightLengthSignificance = flightLengthSignificance};
+	return SV;
+	}
+
+
+
+
+
+
 
 class TauFiller : public edm::EDProducer {
  public:
@@ -75,8 +372,8 @@ class TauFiller : public edm::EDProducer {
   edm::EDGetTokenT<edm::View<reco::GenParticle> > theGenTag ;
   edm::EDGetTokenT<vector<Vertex> > theVtxTag ;
   edm::EDGetTokenT<edm::View<pat::PackedCandidate>> thePFCandTag;
+  edm::EDGetTokenT<edm::View<pat::PackedCandidate> > tracks_;
   edm::EDGetTokenT<reco::BeamSpot> beamSpotTag;
-
   const std::string theDiscriminatorTag;
   const StringCutObjectSelector<pat::Tau, true> cut;
   const CutSet<pat::Tau> flags;
@@ -95,6 +392,7 @@ TauFiller::TauFiller(const edm::ParameterSet& iConfig) :
   theGenTag(consumes<edm::View<reco::GenParticle> >(iConfig.getParameter<edm::InputTag>("genCollection"))),
   theVtxTag(consumes<vector<Vertex>>(iConfig.getParameter<edm::InputTag>("vtxCollection"))),
   thePFCandTag(consumes<edm::View<pat::PackedCandidate>>        (iConfig.getParameter<edm::InputTag>("PFCollection"))),
+  tracks_(consumes<edm::View<pat::PackedCandidate>> (edm::InputTag("packedPFCandidates"))),
   beamSpotTag(consumes<reco::BeamSpot>                         (iConfig.getParameter<edm::InputTag>("offlinebeamSpot"))),
   theDiscriminatorTag(iConfig.getParameter<std::string>("discriminator")),
   cut(iConfig.getParameter<std::string>("cut")),
@@ -207,6 +505,60 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   edm::Handle<edm::View<pat::PackedCandidate> >pfCandHandle;
   iEvent.getByToken(thePFCandTag,pfCandHandle);
   const edm::View<pat::PackedCandidate>* cands = pfCandHandle.product();
+  TLorentzVector aTrack;
+  reco::TrackCollection pvTracks;
+ 
+     
+  for(size_t i=0; i<cands->size(); ++i){
+    if((*cands)[i].charge()==0 || (*cands)[i].vertexRef().isNull()) continue;
+    if(!(*cands)[i].bestTrack()) continue;
+    
+    unsigned int key = (*cands)[i].vertexRef().key();
+    int quality = (*cands)[i].pvAssociationQuality();
+
+    if(key!=0 ||
+       (quality!=pat::PackedCandidate::UsedInFitTight
+	&& quality!=pat::PackedCandidate::UsedInFitLoose)) continue;
+
+    pvTracks.push_back(*((*cands)[i].bestTrack()));
+  }
+
+
+  // TRACKS
+  //
+  edm::Handle<edm::View<pat::PackedCandidate> > tracksHandle;
+  iEvent.getByToken(tracks_, tracksHandle);
+  //if (tracksHandle.isValid()) tracks = *tracksHandle;
+  const edm::View<pat::PackedCandidate>* track_cands = tracksHandle.product();
+
+
+  reco::TrackCollection pvertexTracks;
+  reco::TrackCollection allTracks; // for taus (with possible SV) (testing now)
+
+  for(size_t i=0; i<track_cands->size(); ++i)
+    {
+      if((*track_cands)[i].charge()==0 || (*track_cands)[i].vertexRef().isNull()) continue;
+      if(!(*track_cands)[i].bestTrack()) continue;
+      
+      unsigned int key = (*track_cands)[i].vertexRef().key();
+      int quality = (*track_cands)[i].pvAssociationQuality();
+      
+      // here I need to select "good" tracks
+      // save them to all tracks
+      // and if they belong to PV save them to pv tracks
+      if (!(key!=0 ||
+	    (quality!=pat::PackedCandidate::UsedInFitTight
+	     && quality!=pat::PackedCandidate::UsedInFitLoose)))// continue;
+	{
+	  pvertexTracks.push_back(*((*track_cands)[i].bestTrack()));
+	  // allTracks.push_back(*((*track_cands)[i].bestTrack())); // test for HelixLine Momentum is zero
+	}
+      
+      // TODO: add requirement of "goodness"?
+      allTracks.push_back(*((*track_cands)[i].bestTrack()));
+    }
+
+
 
   // Output collection
   auto_ptr<pat::TauCollection> result( new pat::TauCollection() );
@@ -216,6 +568,10 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     pat::Tau l(*((*tauHandle)[itau].get()));
     std::vector<double > SVPos;     
     std::vector<double > SVCov;    
+    std::vector<double > PFTau_TIP_PVPos;     
+    std::vector<double > PFTau_TIP_PVCov;    
+
+
     std::vector<double > PFTauTrackLV;    
     float PFTauTrack_deltaR=999.;
     std::vector<std::vector<double> > iPionP4;
@@ -230,6 +586,8 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     float TauTrackFiller_M=-999;
     std::vector<double>  TauTrackFiller_par;
     std::vector<double>  TauTrackFiller_cov;
+    float GEOMFlightLenght(-999);
+    float GEOMFlightLenghtSignificance(-999);
 
 
     int a1_charge=-999;
@@ -341,86 +699,169 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   
 
-    /*
-
-     if (l.decayMode() == 0  or l.decayMode() == 1 ) 
-          {
-
-     	   reco::Vertex fakeVertex = vertexs->front();
-     	   reco::CandidatePtrVector 	sigCands = l.signalChargedHadrCands();
-     	   //Get tracks associated wiht pfPV
-     	   reco::TrackCollection pvTracks;
-     	   TLorentzVector aTrack;
-     	   for(size_t i=0; i<cands->size(); ++i){
-     	     if((*cands)[i].charge()==0 || (*cands)[i].vertexRef().isNull()) continue;
-     	     if(!(*cands)[i].bestTrack()) continue;
-    	     
-     	     unsigned int key = (*cands)[i].vertexRef().key();
-     	     int quality = (*cands)[i].pvAssociationQuality();
-    	     
-     	     if(key!=0 ||
-     		(quality!=pat::PackedCandidate::UsedInFitTight
-     		 && quality!=pat::PackedCandidate::UsedInFitLoose)) continue;
-    	     
-     	     pvTracks.push_back(*((*cands)[i].bestTrack()));
-     	   }
-    	   
-     	   //---------- find PV track belonging to sigCands
-     	   double deR(999.); 
-     	   reco::Track RefToTauTrack;
-     	   for(auto iter: pvTracks) {
-     	     //  if(std::find(tracksToBeRemoved.begin(), tracksToBeRemoved.end(), iter.pt())!=tracksToBeRemoved.end()) continue;
-     	     if( sqrt(pow(iter.eta() - l.leadChargedHadrCand()->p4().eta(),2) + pow(iter.phi() - l.leadChargedHadrCand()->p4().phi(),2))  < deR){
-     	       deR = sqrt(pow(iter.eta() - l.leadChargedHadrCand()->p4().eta(),2) + pow(iter.phi() - l.leadChargedHadrCand()->p4().phi(),2));
-     	       RefToTauTrack = iter;
-     	     }
-     	   }
-     	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().e());    
-     	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().px());    
-     	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().py());    
-     	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().pz());    
-
-     	   //const reco::Track *TauTrack  = (*itr)->bestTrack();
-     	   const reco::Track *TauTrack  =  &RefToTauTrack;
-    	   
-     	   GlobalPoint pvpoint(TauTrack->vx(), TauTrack->vy(), TauTrack->vz());
-     	   reco::TransientTrack transTrk = transTrackBuilder->build(TauTrack);
-     	   TrackParticle tautrackparticle = ParticleBuilder::CreateTrackParticle(transTrk, transTrackBuilder, pvpoint, true, true);
-     	   PFTauTrack_deltaR=deR;
-
-     	   if(deR< 0.01){
-
-     	     TauTrackFiller_trackCharge=tautrackparticle.Charge();
-     	     TauTrackFiller_pdgid=tautrackparticle.PDGID();
-     	     TauTrackFiller_B=tautrackparticle.BField();
-     	     TauTrackFiller_M=tautrackparticle.Mass();
-    	     
-     	     for (int i = 0; i < tautrackparticle.NParameters(); i++) {
-     	       TauTrackFiller_par.push_back(tautrackparticle.Parameter(i));
-     	       for (int j = i; j <tautrackparticle.NParameters(); j++) {
-     		 TauTrackFiller_cov.push_back(tautrackparticle.Covariance(i, j));
-     	       }
-     	     }
-     	   }else
-     	         {
-     		   TauTrackFiller_trackCharge=-999;
-     		   TauTrackFiller_pdgid=-999;
-     		   TauTrackFiller_B=-999;
-     		   TauTrackFiller_M=-999;
-     		 }
-     	 }else
-                {
-     		 TauTrackFiller_trackCharge=-999;
-     		 TauTrackFiller_pdgid=-999;
-     		 TauTrackFiller_B=-999;
-     		 TauTrackFiller_M=-999;
-     	       }
-  
-    */
   
 
+     // if (l.decayMode() == 0  or l.decayMode() == 1 ) 
+     //      {
 
+     // 	   reco::Vertex fakeVertex = vertexs->front();
+     // 	   reco::CandidatePtrVector 	sigCands = l.signalChargedHadrCands();
+     // 	   //Get tracks associated wiht pfPV
+     // 	   reco::TrackCollection pvTracks;
+     // 	   TLorentzVector aTrack;
+     // 	   for(size_t i=0; i<cands->size(); ++i){
+     // 	     if((*cands)[i].charge()==0 || (*cands)[i].vertexRef().isNull()) continue;
+     // 	     if(!(*cands)[i].bestTrack()) continue;
+    	     
+     // 	     unsigned int key = (*cands)[i].vertexRef().key();
+     // 	     int quality = (*cands)[i].pvAssociationQuality();
+    	     
+     // 	     if(key!=0 ||
+     // 		(quality!=pat::PackedCandidate::UsedInFitTight
+     // 		 && quality!=pat::PackedCandidate::UsedInFitLoose)) continue;
+    	     
+     // 	     pvTracks.push_back(*((*cands)[i].bestTrack()));
+     // 	   }
+    	   
+     // 	   //---------- find PV track belonging to sigCands
+     // 	   double deR(999.); 
+     // 	   reco::Track RefToTauTrack;
+     // 	   for(auto iter: pvTracks) {
+     // 	     //  if(std::find(tracksToBeRemoved.begin(), tracksToBeRemoved.end(), iter.pt())!=tracksToBeRemoved.end()) continue;
+     // 	     if( sqrt(pow(iter.eta() - l.leadChargedHadrCand()->p4().eta(),2) + pow(iter.phi() - l.leadChargedHadrCand()->p4().phi(),2))  < deR){
+     // 	       deR = sqrt(pow(iter.eta() - l.leadChargedHadrCand()->p4().eta(),2) + pow(iter.phi() - l.leadChargedHadrCand()->p4().phi(),2));
+     // 	       RefToTauTrack = iter;
+     // 	     }
+     // 	   }
+     // 	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().e());    
+     // 	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().px());    
+     // 	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().py());    
+     // 	   PFTauTrackLV.push_back(l.leadChargedHadrCand()->p4().pz());    
+
+     // 	   //const reco::Track *TauTrack  = (*itr)->bestTrack();
+     // 	   const reco::Track *TauTrack  =  &RefToTauTrack;
+    	   
+     // 	   GlobalPoint pvpoint(TauTrack->vx(), TauTrack->vy(), TauTrack->vz());
+     // 	   reco::TransientTrack transTrk = transTrackBuilder->build(TauTrack);
+     // 	   TrackParticle tautrackparticle = ParticleBuilder::CreateTrackParticle(transTrk, transTrackBuilder, pvpoint, true, true);
+     // 	   PFTauTrack_deltaR=deR;
+
+     // 	   if(deR< 0.01){
+
+     // 	     TauTrackFiller_trackCharge=tautrackparticle.Charge();
+     // 	     TauTrackFiller_pdgid=tautrackparticle.PDGID();
+     // 	     TauTrackFiller_B=tautrackparticle.BField();
+     // 	     TauTrackFiller_M=tautrackparticle.Mass();
+    	     
+     // 	     for (int i = 0; i < tautrackparticle.NParameters(); i++) {
+     // 	       TauTrackFiller_par.push_back(tautrackparticle.Parameter(i));
+     // 	       for (int j = i; j <tautrackparticle.NParameters(); j++) {
+     // 		 TauTrackFiller_cov.push_back(tautrackparticle.Covariance(i, j));
+     // 	       }
+     // 	     }
+     // 	   }else
+     // 	         {
+     // 		   TauTrackFiller_trackCharge=-999;
+     // 		   TauTrackFiller_pdgid=-999;
+     // 		   TauTrackFiller_B=-999;
+     // 		   TauTrackFiller_M=-999;
+     // 		 }
+     // 	  }else
+     //            {
+     // 		 TauTrackFiller_trackCharge=-999;
+     // 		 TauTrackFiller_pdgid=-999;
+     // 		 TauTrackFiller_B=-999;
+     // 		 TauTrackFiller_M=-999;
+     // 		}
+  
+   
+
+
+
+
+
+    edm::Handle<reco::BeamSpot> beamSpot;
+    iEvent.getByToken(beamSpotTag, beamSpot);
+ 
+
+
+    std::vector<reco::TransientTrack> transTracksForPVRefit;  
+   
+    //   find  tracks belonging to tau decay
+
+    reco::CandidatePtrVector tauproducts = l.signalChargedHadrCands();//signalCands();
+    reco::TrackCollection RemovedTracks;
+    //    double matchingQuality(0);
+    //     std::cout<<"TauFiller:  signalChargedHadrCands: "<<std::endl;
+    for (reco::CandidatePtrVector::const_iterator itr = tauproducts.begin(); itr != tauproducts.end(); ++itr) {
+      double deR(999.); 
+      reco::Track closestTrack;
+      //	std::cout<<" px   "<< (*itr)->p4().Px() << " charge   "<<(*itr)->charge() <<std::endl;
+      for(auto iter: allTracks) {
+	//	if(std::find(tracksToBeRemoved.begin(), tracksToBeRemoved.end(), iter.pt())!=tracksToBeRemoved.end()) continue;
+	if( sqrt(pow(iter.eta() - (*itr)->p4().eta(),2) + pow(iter.phi() - (*itr)->p4().phi(),2))  < deR){
+	  deR = sqrt(pow(iter.eta() - (*itr)->p4().eta(),2) + pow(iter.phi() - (*itr)->p4().phi(),2));
+	  closestTrack = iter;
+	}
+      }
+      
+      RemovedTracks.push_back(closestTrack);
+    }
     
+     for(auto iterpv: pvTracks) {
+       bool matched(false);
+       for(auto iterem: RemovedTracks) {
+	 if(sqrt(pow(iterem.eta() - iterpv.eta(),2) + pow(iterem.phi() - iterpv.phi(),2))  < 0.0001) matched =true;
+       }
+       if(matched)continue;
+       transTracksForPVRefit.push_back(transTrackBuilder->build(iterpv));
+     }
+     bool fitOk = false;  
+     TransientVertex transRefitPVVtx;
+     if(transTracksForPVRefit.size() >= 2 ) {
+       AdaptiveVertexFitter avf;
+       avf.setWeightThreshold(0.1); 
+       try {
+	 transRefitPVVtx = avf.vertex(transTracksForPVRefit, *beamSpot);
+	 fitOk = true; 
+       } catch (...) {
+	 fitOk = false; 
+	 std::cout<<"Vtx fit failed!"<<std::endl;
+       }
+     }
+
+
+
+     // if(fitOk){std::cout<<"bla"<<std::endl;}
+     if(fitOk ){
+       PFTau_TIP_PVPos.push_back(transRefitPVVtx.position().x());
+       PFTau_TIP_PVPos.push_back(transRefitPVVtx.position().y());
+       PFTau_TIP_PVPos.push_back(transRefitPVVtx.position().z());
+       
+       reco::Vertex PrimaryTIPVertex = transRefitPVVtx;
+       
+       TMatrixTSym<double> pvTIPcov(3);
+       math::Error<3>::type pvTIPCov;
+       PrimaryTIPVertex.fill(pvTIPCov);
+       for (int i = 0; i <3; i++){
+	 for (int j = 0; j < 3; j++) {
+	   pvTIPcov(i, j) = pvTIPCov(i, j);
+	   pvTIPcov(j, i) = pvTIPCov(i, j);
+	   // cout<<"  svcov  "<<svcov(i,j)<<endl;
+	 }
+       }
+       for (int i = 0; i < 3; i++) {
+	 for (int j = i; j < 3; j++) {
+	   PFTau_TIP_PVCov.push_back(pvTIPcov(i, j));
+	 }
+       }
+     }
+
+     
+
+     //  std::cout<<"  decay mode    "<<l.decayMode() <<" size  "<< pvTracks.size() << "after removal " <<transTracksForPVRefit.size() <<  "   n tracks to be removed  "<< RemovedTracks.size()<<std::endl;
+     //    std::cout<<"  tau sig  "<<l.flightLengthSig()<<" decay Mode  " <<l.decayMode() <<std::endl;
+  
     if (l.decayMode() == 10 /* or l.decayMode() == 1*/) {
       ///////////////////////////////////////////////////////////////////////////////////////////////
       // Get tracks form PFTau daugthers
@@ -433,33 +874,19 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       iEvent.getByToken(beamSpotTag, beamSpot);
  
 
-      //Get tracks associated wiht pfPV
-      reco::TrackCollection pvTracks;
-      TLorentzVector aTrack;
-      for(size_t i=0; i<cands->size(); ++i){
-	if((*cands)[i].charge()==0 || (*cands)[i].vertexRef().isNull()) continue;
-	if(!(*cands)[i].bestTrack()) continue;
-    
-	unsigned int key = (*cands)[i].vertexRef().key();
-	int quality = (*cands)[i].pvAssociationQuality();
-
-	if(key!=0 ||
-	   (quality!=pat::PackedCandidate::UsedInFitTight
-	    && quality!=pat::PackedCandidate::UsedInFitLoose)) continue;
-
-	pvTracks.push_back(*((*cands)[i].bestTrack()));
-      }
 
       std::vector<reco::TransientTrack> transTracks;  
       //   find  tracks belonging to tau decay
 
       std::vector<double > tracksToBeRemoved; // compare by Pt due to the conflict of comparing const and not const iterators
       double matchingQuality(0);
+      //     std::cout<<"TauFiller:  signalChargedHadrCands: "<<std::endl;
       for (reco::CandidatePtrVector::const_iterator itr = sigCands.begin(); itr != sigCands.end(); ++itr) {
 	double deR(999.); 
 	double checkqual(0);
 	reco::Track closestTrack;
-	for(auto iter: pvTracks) {
+	//	std::cout<<" px   "<< (*itr)->p4().Px() << " charge   "<<(*itr)->charge() <<std::endl;
+	for(auto iter: allTracks) {
 	  if(std::find(tracksToBeRemoved.begin(), tracksToBeRemoved.end(), iter.pt())!=tracksToBeRemoved.end()) continue;
 	  if( sqrt(pow(iter.eta() - (*itr)->p4().eta(),2) + pow(iter.phi() - (*itr)->p4().phi(),2))  < deR){
 	    deR = sqrt(pow(iter.eta() - (*itr)->p4().eta(),2) + pow(iter.phi() - (*itr)->p4().phi(),2));
@@ -471,18 +898,18 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	matchingQuality+=checkqual;
 	tracksToBeRemoved.push_back(closestTrack.pt());
 	if(closestTrack.pt()!=0)transTracks.push_back(transTrackBuilder->build(closestTrack));  //cout<<"  closestTrackiter eta  :  "<<   closestTrack.eta() << "   phi   " << closestTrack.phi() << "    pt  "<< closestTrack.pt() <<endl;
-	// std::cout<<" tracks to be reffited  "<< std::endl;
-	// std::cout<<" px,py,pz,pt  "<< closestTrack.px() << " "<< closestTrack.py() << " "<< closestTrack.pz() << " "<< closestTrack.py() <<std::endl;
+	// std::cout<<" tracks to be reffited  "<<  matchingQuality  <<std::endl;
+	//  std::cout<<" px,py,pz,pt  "<< closestTrack.px() << " "<< closestTrack.py() << " "<< closestTrack.pz() << " "<< closestTrack.py() <<std::endl;
       }
         bool fitOk = false;  
 	//std::cout<<"  ----  "<<std::endl;
 
+	//pvTracksForRefit
 
 	if(transTracks.size() >= 2 ) {
-	  AdaptiveVertexFitter avf;
-	  avf.setWeightThreshold(0.001); 
+	  KalmanVertexFitter kvf;
 	  try {
-	    transVtx = avf.vertex(transTracks, *beamSpot);
+	    transVtx = kvf.vertex(transTracks);
 	    fitOk = true; 
 	  } catch (...) {
 	    fitOk = false; 
@@ -492,13 +919,167 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
       fitOk = fitOk && transVtx.isValid() && fabs(transVtx.position().x())<1 && fabs(transVtx.position().y())<1;
       //      std::cout<<" is fit OK ??  "<<   fitOk <<std::endl;
+    
       if(fitOk) {
 	///NOTE: we take original vertex z position, as this gives the best reults on CP
 	///variables. To be understood; probable reason are missing tracks with Pt<0.95GeV
 	SVPos.push_back(transVtx.position().x());
 	SVPos.push_back(transVtx.position().y());
 	SVPos.push_back(transVtx.position().z());
+	//	std::cout<<" SV  "<< transVtx.position().x() <<" " <<transVtx.position().y() <<"   "<< transVtx.position().z() <<std::endl;
+
+
+	 //--------------------------  geometry calculation of PVSVSignificance. The code was originally written by  A. Toldaiev -------------------------
+	 std::vector<Float_t> NT_tau_SV_fit_track_OS_matched_track_dR;
+	 std::vector<Float_t> NT_tau_SV_fit_track_SS1_matched_track_dR;
+	 std::vector<Float_t> NT_tau_SV_fit_track_SS2_matched_track_dR;
+	 std::vector<Float_t> NT_tau_SV_fit_track_matchQ;
+
+	 std::vector<ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double> > > NT_tau_SV_fit_track_OS_p4;
+	 std::vector<ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double> > > NT_tau_SV_fit_track_SS1_p4;
+	 std::vector<ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double> > > NT_tau_SV_fit_track_SS2_p4;
+
+	  std::vector<Int_t> NT_tau_SV_fit_track_OS_matched_track_vtxkey;
+	  std::vector<Int_t> NT_tau_SV_fit_track_SS1_matched_track_vtxkey;
+	  std::vector<Int_t> NT_tau_SV_fit_track_SS2_matched_track_vtxkey;
+	  std::vector<Int_t> NT_tau_SV_fit_track_OS_matched_track_vtxQ;
+	  std::vector<Int_t> NT_tau_SV_fit_track_SS1_matched_track_vtxQ;
+	  std::vector<Int_t> NT_tau_SV_fit_track_SS2_matched_track_vtxQ;
+
+	  std::vector<ROOT::Math::DisplacementVector3D<ROOT::Math::Cartesian3D<double> , ROOT::Math::DefaultCoordinateSystemTag> >  NT_tau_SV_fit_track_OS_matched_track_b;
+	  std::vector<ROOT::Math::DisplacementVector3D<ROOT::Math::Cartesian3D<double> , ROOT::Math::DefaultCoordinateSystemTag> >  NT_tau_SV_fit_track_SS1_matched_track_b;
+	  std::vector<ROOT::Math::DisplacementVector3D<ROOT::Math::Cartesian3D<double> , ROOT::Math::DefaultCoordinateSystemTag> >  NT_tau_SV_fit_track_SS2_matched_track_b;
+	  std::vector<ROOT::Math::DisplacementVector3D<ROOT::Math::Cartesian3D<double> , ROOT::Math::DefaultCoordinateSystemTag> >  NT_tau_SV_fit_track_OS_matched_track_p3;
+	  std::vector<ROOT::Math::DisplacementVector3D<ROOT::Math::Cartesian3D<double> , ROOT::Math::DefaultCoordinateSystemTag> >  NT_tau_SV_fit_track_SS1_matched_track_p3;
+	  std::vector<ROOT::Math::DisplacementVector3D<ROOT::Math::Cartesian3D<double> , ROOT::Math::DefaultCoordinateSystemTag> >  NT_tau_SV_fit_track_SS2_matched_track_p3;
+
+
+
+
+	
+	  //	 std::cout<<" sigCands  "<< sigCands.size()<< "  " <<l.decayMode()<< std::endl;
+	 if(sigCands.size() <3)continue;
+	 for (reco::CandidatePtrVector::const_iterator itr_cand = sigCands.begin(); itr_cand != sigCands.end(); ++itr_cand)
+	   {
+
+	     NT_tau_SV_fit_track_OS_p4.push_back((*itr_cand)->p4());
+
+	   }
+	
+	 // loop through tracks and save their impact parameters
+	 // and match quality dR
+	 double min_dR_os(99999.), min_dR_ss1(99999.), min_dR_ss2(99999.);
+	 int matched_track_OS = -1, matched_track_SS1 = -1, matched_track_SS2 = -1;
+	 for(size_t i=0; i<track_cands->size(); ++i)
+	   {
+	     // TODO: these requirements are probably the reasone some tracks are not found for tau sigCands
+	     if((*track_cands)[i].charge()==0 || (*track_cands)[i].vertexRef().isNull()) continue;
+	     if(!(*track_cands)[i].bestTrack()) continue;
+	  
+	     auto track = (*track_cands)[i].bestTrack();
+	     // if(!track->isNonNull()) continue;
+	     // find closest matches to general track	
+	     // std::cout<<" deb 10"<<std::endl;     
+	     // std::cout<<"NT_tau_SV_fit_track_OS_p4.size()"<<NT_tau_SV_fit_track_OS_p4.size()<<std::endl;     
+	     // std::cout<<"NT_tau_SV_fit_track_SS1_p4.size()"<<NT_tau_SV_fit_track_SS1_p4.size()<<std::endl;     
+	     // std::cout<<"NT_tau_SV_fit_track_SS2_p4.size()"<<NT_tau_SV_fit_track_SS2_p4.size()<<std::endl;     
+ 
+
+	     double dR_os  = sqrt(pow(track->eta() - sigCands[0]->p4().eta() , 2) + pow(track->phi() - sigCands[0]->p4().phi(), 2));
+	     double dR_ss1 = sqrt(pow(track->eta() - sigCands[1]->p4().eta(), 2) + pow(track->phi() - sigCands[1]->p4().phi(), 2));
+	     double dR_ss2 = sqrt(pow(track->eta() - sigCands[2]->p4().eta(), 2) + pow(track->phi() - sigCands[2]->p4().phi(), 2));
+	     if (dR_os < min_dR_os)
+	       {
+	 	min_dR_os = dR_os;
+	 	matched_track_OS = i;
+	       }
+	     if (dR_ss1 < min_dR_ss1)
+	       {
+	 	min_dR_ss1 = dR_ss1;
+	 	matched_track_SS1 = i;
+	       }
+	     
+	     if (dR_ss2 < min_dR_ss2)
+	       {
+	 	min_dR_ss2 = dR_ss2;
+	 	matched_track_SS2 = i;
+	       }
+	   }
+	 // tracks are matched, save parameters
+	 //	  std::cout<<"  deb 30 "<<std::endl;
+	 // quality of match
+
+	
+	 // OS
+	 int track_index;
+	 track_index = matched_track_OS;
+
+	 auto ref_vertex = *((*track_cands)[track_index].vertexRef());
+	 auto closest_point = (*track_cands)[track_index].vertex();
+	 auto distance1 = closest_point - ref_vertex.position();
+	 // distance is of class ROOT::Math::DisplacementVector3D<ROOT::Math::Cartesian3D<double>, ROOT::Math::DefaultCoordinateSystemTag>
+	 //impact.SetXYZ(distance.x(), distance.y(), distance.z());
+	
+	
+	 // SS1
+	 track_index = matched_track_SS1;
+	
+	 ref_vertex = *((*track_cands)[track_index].vertexRef());
+	 closest_point = (*track_cands)[track_index].vertex();
+	 auto distance2 = closest_point - ref_vertex.position();
+	 // distance is of class ROOT::Math::DisplacementVector3D<ROOT::Math::Cartesian3D<double>, ROOT::Math::DefaultCoordinateSystemTag>
+	 //impact.SetXYZ(distance.x(), distance.y(), distance.z());
+	
+	 // SS2
+	 track_index = matched_track_SS2;
+	
+	
+	 ref_vertex = *((*track_cands)[track_index].vertexRef());
+	 closest_point = (*track_cands)[track_index].vertex();
+	 auto distance3 = closest_point - ref_vertex.position();
+	 // distance is of class ROOT::Math::DisplacementVector3D<ROOT::Math::Cartesian3D<double>, ROOT::Math::DefaultCoordinateSystemTag>
+	 //impact.SetXYZ(distance.x(), distance.y(), distance.z());
+	
+	
+	 //TVector3 tr_ss2;
+	 //TVector3 tr_os ;
+	 //TVector3 tr_ss1;
+	 //tr_ss2.SetXYZ(NT_tau_SV_fit_track_SS2_p4.back().X(), NT_tau_SV_fit_track_SS2_p4.back().Y(), NT_tau_SV_fit_track_SS2_p4.back().Z());
+	 //tr_os .SetXYZ(NT_tau_SV_fit_track_OS_p4 .back().X(), NT_tau_SV_fit_track_OS_p4 .back().Y(), NT_tau_SV_fit_track_OS_p4 .back().Z());
+	 //tr_ss1.SetXYZ(NT_tau_SV_fit_track_SS1_p4.back().X(), NT_tau_SV_fit_track_SS1_p4.back().Y(), NT_tau_SV_fit_track_SS1_p4.back().Z());
+	
+	 // let's save also Vector3 of tracks? to not have to convert everything every time
+	 NT_tau_SV_fit_track_OS_matched_track_p3.push_back(sigCands[0]->p4().Vect());
+	 NT_tau_SV_fit_track_OS_matched_track_p3.push_back(sigCands[1]->p4().Vect());
+	 NT_tau_SV_fit_track_OS_matched_track_p3.push_back(sigCands[2]->p4().Vect());
+	 // geometrical SV
+	 struct sv_pair geom_SV = geometrical_SV(
+						 distance1 , NT_tau_SV_fit_track_OS_matched_track_p3.at(0),
+					         distance2 , NT_tau_SV_fit_track_OS_matched_track_p3.at(1),
+					         distance3 , NT_tau_SV_fit_track_OS_matched_track_p3.at(2));
+
+
+
+
+
+
+
+
+	 // std::cout<<" deb 60"<<std::endl;
+	 GEOMFlightLenght=geom_SV.flightLength;
+	 GEOMFlightLenghtSignificance=geom_SV.flightLengthSignificance;
+
+	 //	 std::cout<<" geom_SV.flightLengthSignificance  " <<geom_SV.flightLengthSignificance <<std::endl;
+      
+
+    
+	 //--------------------------  geometry calculation of PVSVSignificance from A. Toldaiev -------------------------
+
+
+
       }
+    
+      
       reco::Vertex secondaryVertex = transVtx;
  
       SVChi2NDofMatchingQual.push_back(secondaryVertex.chi2());
@@ -566,7 +1147,7 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	    iRefitPionCharge.push_back(transTracks.at(i).charge());
 	    //	    ReFitPions.at(i).LVCov().Print();
 	  }
-	  
+	
 	  // now covert a1 into LorentzVectorParticle
 	  TMatrixT<double> a1_par(LorentzVectorParticle::NLorentzandVertexPar, 1);
 	  TMatrixTSym<double> a1_cov(LorentzVectorParticle::NLorentzandVertexPar);
@@ -593,7 +1174,7 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     }
     
 
-    
+  
     
   
 
@@ -625,7 +1206,6 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     //else if (A==3&&B==0)decayMode=3;
     float tauid = (l.isTauIDAvailable(theDiscriminatorTag) ? l.tauID(theDiscriminatorTag) : -999);
     //printf("A, B, tau %d %d %f \n",A,B,tauid);
-
     //if(decayMode<0&&tauid==0)edm::LogWarning("TauFiller: Unrecognized decay mode");
     /*
 
@@ -634,7 +1214,7 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     float IPError = l.edB(pat::Electron::PV3D);
     float SIP     = IP/IPError;
     */
-
+  
     float dxy = 999.;
     float dz  = 999.;
     if (vertexs->size()>0) {
@@ -648,11 +1228,11 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
       //For some reasons, the reference secondaryVertex() is empty EVEN if hasSecondaryVertex is true
       //To be asked to miniAOD people
-     // if(l.hasSecondaryVertex()) {
-     //   dz  = l.secondaryVertex().get()->z();    
+      // if(l.hasSecondaryVertex()) {
+      //   dz  = l.secondaryVertex().get()->z();    
 
-     // 	cout<<"  secondarry "<< dz <<endl;
-     // }
+      // 	cout<<"  secondarry "<< dz <<endl;
+      // }
     }
   
  
@@ -660,6 +1240,7 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     l.addUserInt("isTESShifted",isTESShifted);
     l.addUserFloat("HPSDiscriminator",tauid); 
     l.addUserFloat("decayMode",l.decayMode()); 
+    l.addUserFloat("FLSig",l.flightLengthSig()); 
     l.addUserFloat("dxy",dxy); 
     l.addUserFloat("dz",dz); 
     l.addUserFloat("PFChargedHadIso",PFChargedHadIso); 
@@ -676,6 +1257,12 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     l.addUserInt("numParticlesIsoCone",numParticlesIsoCone);
     l.addUserFloat("leadChargedParticlePt",leadChargedParticlePt);
     l.addUserFloat("trackRefPt",trackRefPt); 
+
+   l.addUserFloat("GEOMFlightLenght",GEOMFlightLenght); 
+    l.addUserFloat("GEOMFlightLenghtSignificance",GEOMFlightLenghtSignificance); 
+
+
+
     //    std::cout<< " Tau " <<itau << std::endl;
     // fill all userfloats
     for (unsigned int iuf = 0; iuf < tauFloatDiscrims_.size(); iuf++)
@@ -754,9 +1341,12 @@ TauFiller::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     l.addUserData<std::vector<double > >( "iPionCharge",  iPionCharge);
     l.addUserData<std::vector<std::vector<double > > >( "iRefitPionP4", iRefitPionP4 );
     l.addUserData<std::vector<double > >( "iRefitPionCharge",  iRefitPionCharge);
+    l.addUserData<std::vector<double > >( "PFTau_TIP_PVPos", PFTau_TIP_PVPos);
+    l.addUserData<std::vector<double > >( "PFTau_TIP_PVCov", PFTau_TIP_PVCov);
 
+    // l.addUserData<std::vector<double > >( "SVPos", SVPos );
+    // l.addUserData<std::vector<double > >( "SVCov", SVCov);
   
-
     l.addUserInt("a1_charge",  a1_charge);
     l.addUserInt("a1_pdgid",  a1_pdgid);
     l.addUserFloat("a1_B",  a1_B);
